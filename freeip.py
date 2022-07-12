@@ -30,8 +30,6 @@ def get_all_ips():
     """Build list of all possible IP addresses in subnet."""
     # initialize list for all IP's in subnet
     iplist = []
-
-
     subnet = '10.143.50.'
     for x in range(1, 249):
         iplist.append(subnet + str(x))
