@@ -46,8 +46,8 @@ logger.addHandler(file_handler)
 # Define Database Connection
 
 CONNECTION = """
-Driver={SQL Server Native Client 11.0};
-Server=tn-sql14;
+Driver={SQL Server};
+Server=tn-sql;
 Database=autodata;
 autocommit=true;
 UID=production;
@@ -244,7 +244,8 @@ def get_filemaker_items():
     sql = """
             SELECT Ourpart,"Band A Part Number", "Housing A Part Number",
                 "Screw Part Number" AS Screw, "Band Feed from Band data",
-                "Ship Diam Max", "Ship Diam Min", "Hex Size", "Band_Thickness", "Band_Width", "CameraInspectionRequired"
+                "Ship Diam Max", "Ship Diam Min", "Hex Size", "Band_Thickness",
+                "Band_Width", "CameraInspectionRequired", "ScrDrvChk"
             FROM tbl8Tridon 
             WHERE  ("Band Feed from Band data" IS NOT NULL)
                 AND (Ourpart IS NOT NULL) AND (RIGHT(Ourpart,1) <> '\r')
@@ -257,6 +258,7 @@ def get_filemaker_items():
                 AND ("Band_Thickness" IS NOT NULL)
                 AND ("Band Width" IS NOT NULL)
                 AND (CameraInspectionRequired IS NOT NULL)
+                AND (ScrDrvChk IS NOT NULL)
                 AND ("Hex Size" IS NOT NULL)
             ORDER BY Ourpart
         """
@@ -299,8 +301,8 @@ def update_db(dbase):
         print("Delete Time = " + str(round((timer() - start), 3)) + " sec")
     # Load part data onto SQL server
     sql = """INSERT INTO production.parts (PartNumber,Band,Housing,Screw,Feed,
-                    DiaMax,DiaMin,HexSz,BandThickness,BandWidth,CamInspect)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?);"""
+                    DiaMax,DiaMin,HexSz,BandThickness,BandWidth,CamInspect,ScrDrvChk)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?);"""
     try:
         start = timer()
         cursor.executemany(sql, dbase)
@@ -371,11 +373,11 @@ def main():
         out.writerows(dbase)
         outputfile.close()
         # Send to machines and log bad transfers
-        log_bad_machines(update_machines('parts.csv', partdatapath), partdatapath)
+        # log_bad_machines(update_machines('parts.csv', partdatapath), partdatapath)
     else:
         print('Files Identical, No Need to Replace')
     # Check Maintenance Directory for New Files
-    check_maint_files(maintpath, quepath)
+    # check_maint_files(maintpath, quepath)
     msg = "Total Time = " + str(round((timer() - start), 3)) + " sec"
     logger.info(msg)
     print(msg)

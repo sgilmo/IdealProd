@@ -17,7 +17,8 @@ def get_filemaker_items():
     sql = """
             SELECT Ourpart,"Band A Part Number", "Housing A Part Number",
                 "Screw Part Number" AS Screw, "Band Feed from Band data",
-                "Ship Diam Max", "Ship Diam Min", "Hex Size", "Band_Thickness", "Band_Width", "CameraInspectionRequired"
+                "Ship Diam Max", "Ship Diam Min", "Hex Size", "Band_Thickness", "Band_Width",
+                "CameraInspectionRequired", "ScrDrvChk"
             FROM tbl8Tridon 
             WHERE  (Ourpart = %s)
             ORDER BY Ourpart
@@ -39,6 +40,7 @@ def get_filemaker_items():
         print('Band Thickness: ' + str(row[8]))
         print('Band Width: ' + str(row[9]))
         print('Camera Inspect: ' + str(row[10]))
+        print('Screwdriver Check: ' + str(row[11]))
     cnxn.close()
     if len(row) == 0:
         print("No Part Found")

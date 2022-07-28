@@ -28,8 +28,8 @@ FORMAT = '%Y%m%d%H%M%S'
 # Define Database Connection
 
 CONNECTION = """
-Driver={SQL Server Native Client 11.0};
-Server=tn-sql14;
+Driver={SQL Server};
+Server=tn-sql;
 Database=autodata;
 autocommit=true;
 UID=production;

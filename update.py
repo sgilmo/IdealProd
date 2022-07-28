@@ -45,8 +45,8 @@ BAD_FILE_LIST = []
 # Define Database Connection
 
 CONNECTION = """
-Driver={SQL Server Native Client 11.0};
-Server=tn-sql14;
+Driver={SQL Server};
+Server=tn-sql;
 Database=autodata;
 autocommit=true;
 UID=production;
@@ -55,7 +55,7 @@ PWD=Auto@matics;
 if platform.release() == 'XP':
     CONNECTION = """
     Driver={SQL Server Native Client 10.0};
-    Server=tn-sql14;
+    Server=tn-sql;
     Database=autodata;
     autocommit=true;
     UID=production;
@@ -305,7 +305,7 @@ def load_mach_runtime(fpath, size):
                 os.remove(fpath + filename)
                 print(row[1] + " Entered into runtime database")
     dbcnxn.close()
-    checkins(machlist)
+    # checkins(machlist)
     return
 
 
@@ -371,23 +371,22 @@ def log_test_data(fpath, test_type):
     testbadfilepath = "\\Inetpub\\ftproot\\acmtestbad\\"
     dbcnxn = pyodbc.connect(CONNECTION)
     cursor = dbcnxn.cursor()
-    filepath = fpath + "\\"
-    filelist = os.listdir(filepath)
+    filelist = os.listdir(fpath)
     for filename in filelist:
         badfile = 0
-        inputfile = open(filepath + filename)
+        inputfile = open(fpath + filename)
         parser = csv.reader(inputfile)
         for row in parser:
             sql = ""
             rowdata = ()
             if test_type == 'CG':
-                print("Processing Ship Dia data file: " + filepath + filename)
+                print("Processing Ship Dia data file: " + fpath + filename)
                 sql = """INSERT INTO production.AcmShipDia (ID,Tests,Machine,MachIP,TestReq,Operator,Part,DiaMin,
                                     DiaMax,TestComp,Reading)
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
                 rowdata = (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10])
             elif test_type == 'TG':
-                print("Processing Thickness Test data file: " + filepath + filename)
+                print("Processing Thickness Test data file: " + fpath + filename)
                 sql = """INSERT INTO production.AcmThick (ID,Machine,MachIP,TestReq,Operator,Part,Spec,TestComp,Reading)
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);"""
                 rowdata = (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8])
@@ -407,7 +406,7 @@ def log_test_data(fpath, test_type):
 
         inputfile.close()
         if badfile == 0:
-            os.remove(filepath + filename)
+            os.remove(fpath + filename)
         elif badfile == 1:
             BAD_FILE_LIST.append("ACMTest_" + filename)
             movefile(fpath + filename, testbadfilepath + filename)
@@ -540,6 +539,8 @@ def main():
     load_mach_production(proddatapath, 20)
     check_badfile()
     faults.get_faults()
+
+    """
     # Move Camera Files to Server from Machines Equipped With Cameras
     acms = ('LACM384', 'ACM367', 'LACM386', 'ACM372', 'LACM383', 'LACM385', 'LACM391', 'ACM366',
             'LACM382', 'LACM381', 'ACM362', 'LACM390', 'ACM373', 'ACM374', 'ACM375', 'ACM376', 'ACM361', 'ACM365')
@@ -561,6 +562,7 @@ def main():
             os.mkdir(fpath)
         dest = "\\\\tn-san-fileserv\\TOOLING\\2874 FASTLOK AUTOMATION\\Vision\\Lok Images\\Good\\"
         move_cam_files(fpath, dest)
+    """
 
     log_conegage_data()
     logger.info("Total Execution Time = " + str(round((timer() - start), 3)) + " sec")
