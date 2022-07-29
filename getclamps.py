@@ -18,7 +18,6 @@ to the 'ReviewQue' directory and the Elab will be notified via email.
 import csv
 import ftplib
 import os
-import platform
 import shutil
 from datetime import datetime
 from subprocess import Popen, PIPE
@@ -53,15 +52,6 @@ autocommit=true;
 UID=production;
 PWD=Auto@matics;
 """
-if platform.release() == 'XP':
-    CONNECTION = """
-    Driver={SQL Server Native Client 10.0};
-    Server=tn-sql14;
-    Database=autodata;
-    autocommit=true;
-    UID=production;
-    PWD=Auto@matics;
-    """
 
 FORMAT = '%Y%m%d%H%M%S'
 
