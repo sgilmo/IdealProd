@@ -4,67 +4,36 @@ Compare existing file on server with Automation Directs
 If there is a difference replace the one on the server.
 """
 
-import xlrd
 import pyodbc
-import urllib.request
-import urllib.parse
-import urllib.error
-import platform
-import contextlib
+import pandas as pd
 from timeit import default_timer as timer
 
 # Define Database Connection
 
 CONNECTION = """
-Driver={SQL Server Native Client 11.0};
-Server=tn-sql14;
+Driver={SQL Server};
+Server=tn-sql;
 Database=autodata;
 UID=production;
 PWD=Auto@matics;
 """
-if platform.release() == 'XP':
-    CONNECTION = """
-    Driver={SQL Server Native Client 10.0};
-    Server=tn-sql14;
-    Database=autodata;
-    UID=production;
-    PWD=Auto@matics;
-    """
-
-
-def get_pricelist():
-    """Get Price List From Automation Direct Web Site"""
-    url = 'https://cdn.automationdirect.com/static/prices_public.xls'
-    filename = "c:\\PriceLists\\prices_public.xlsx"
-    print("downloading Price List")
-    with open(filename, 'wb') as out_file:
-        with contextlib.closing(urllib.request.urlopen(url)) as fp:
-            block_size = 1024 * 8
-            while True:
-                block = fp.read(block_size)
-                if not block:
-                    break
-                out_file.write(block)
-    return
 
 
 def read_pricelist():
     """Open price list workbook"""
-    workbook = xlrd.open_workbook('c:\\PriceLists\\prices_public.xlsx')
-    print("Opening Workbook for parsing")
-    worksheet = workbook.sheet_by_name('priceslive')
-    num_rows = worksheet.nrows - 1
-    curr_row = 2
-    part_col = 0
-    price_col = 3
     dbase = []
-    while curr_row < num_rows:
-        curr_row += 1
-        part = worksheet.cell_value(curr_row, part_col)
-        price = worksheet.cell_value(curr_row, price_col)
-        if type(price) is float:
-            dbase.append(list([str(part), float(price)]))
-    print(repr(num_rows) + " Rows Found on Spreadsheet")
+    print('Fetching Data File From Automation Direct Web Site')
+    url = 'https://cdn.automationdirect.com/static/prices/prices_public.xlsx'
+    url = 'c:\\PriceLists\\prices_public.xlsx'
+    df = pd.read_excel(url, sheet_name='ADC Price List with Categories ',
+                       usecols=[0, 2, 3])
+    validity = df.values[3, 0]
+    for item in df.values:
+        cost = item[2]
+        if type(cost) == float or type(cost) == int:
+            cost = float(cost)
+            if cost > 0.00:
+                dbase.append(list([item[0], item[2], item[1] + ' ' + validity]))
     return dbase
 
 
@@ -80,7 +49,7 @@ def update_db(dbase):
 
     # Load price data onto SQL server
     print("Loading data to SQL server")
-    strsql = "INSERT INTO production.Adirect (part,price) VALUES (?,?)"
+    strsql = "INSERT INTO production.Adirect (part,price,status) VALUES (?,?,?)"
     cursor.executemany(strsql, dbase)
     dbcnxn.commit()
     print(str(len(dbase)) + " Records Processed")
@@ -90,7 +59,6 @@ def update_db(dbase):
 def main():
     """Main Function"""
     start = timer()
-    get_pricelist()
     update_db(read_pricelist())
     print("Total Time = " + str(round((timer() - start), 3)) + " sec")
 
