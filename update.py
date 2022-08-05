@@ -352,6 +352,49 @@ def load_mach_production(fpath, size):
     return
 
 
+# noinspection DuplicatedCode
+def load_fastlok_production(fpath, size):
+    """Load FastLok Shift Production Data into SQL Server."""
+    prodbadfilepath = "\\Inetpub\\ftproot\\fastlokprodbad\\"
+    dbcnxn = pyodbc.connect(CONNECTION)
+    cursor = dbcnxn.cursor()
+    # Loads shift data to SQL server
+    check_file_size(fpath, "Production")  # Move zero size files to other directory
+    filelist = os.listdir(fpath)
+    for filename in filelist:
+        inputfile = open(fpath + filename)
+        parser = csv.reader(inputfile)
+        row = next(parser)
+        inputfile.close()
+        print("Processing FastLok Production File: " + fpath + filename)
+        if len(row) >= size:
+            sql = """INSERT INTO production.FastLokProduction (ID,Machine,RecDate,hr0,hr1,hr2,hr3,hr4,hr5,hr6,hr7,hr8,hr9,
+                                 hr10,hr11,hr12,hr13,hr14,hr15,hr16,hr17,hr18,hr19,hr20,hr21,hr22,hr23)
+                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);"""
+            try:
+                cursor.execute(sql, (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9],
+                                     row[10], row[11], row[12], row[13], row[14], row[15], row[16], row[17], row[18],
+                                     row[19], row[20], row[21], row[22], row[23], row[24], row[25], row[26]))
+                dbcnxn.commit()
+            except pyodbc.IntegrityError:
+                msg = "Duplicate Primary Key " + str(row[0]) + "File = " + filename
+                logger.error(msg + " [" + load_fastlok_production.__name__ + "]")
+                print(msg)
+                BAD_FILE_LIST.append("fastlokprod_" + filename)
+                movefile(fpath + filename, prodbadfilepath + filename)
+            except pyodbc.Error:
+                msg = "could not load " + filename
+                logger.error(msg + " [" + load_fastlok_production.__name__ + "]")
+                print(msg)
+                BAD_FILE_LIST.append("fastlokprod_" + filename)
+                movefile(fpath + filename, prodbadfilepath + filename)
+            else:
+                os.remove(fpath + filename)
+                print(row[1] + " Entered into FastLok production database")
+    dbcnxn.close()
+    return
+
+
 def log_bad_row(badrow, dirname, desc):
     """Log Bad Row Reads."""
     badrowfilepath = "\\Inetpub\\ftproot\\" + dirname + "\\"
@@ -523,6 +566,8 @@ def main():
     thickpath = "\\Inetpub\\ftproot\\acmtests\\Thickness\\"
     runtimedatapath = "\\Inetpub\\ftproot\\acmrtdata\\"
     proddatapath = "\\Inetpub\\ftproot\\acmproddata\\"
+    fastlok1datapath = "\\Inetpub\\ftproot\\FastLok\\FL2874\\"
+    fastlok2datapath = "\\Inetpub\\ftproot\\FastLok\\FL2874-2\\"
 
     start = timer()
     logger.info("Program Started")
@@ -537,6 +582,8 @@ def main():
     load_mach_jobs(jobfilepath, 9)
     load_mach_runtime(runtimedatapath, 20)
     load_mach_production(proddatapath, 20)
+    load_fastlok_production(fastlok1datapath, 20)
+    load_fastlok_production(fastlok2datapath, 20)
     check_badfile()
     faults.get_faults()
 
