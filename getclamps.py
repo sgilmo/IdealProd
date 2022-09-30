@@ -18,11 +18,12 @@ to the 'ReviewQue' directory and the Elab will be notified via email.
 import csv
 import ftplib
 import os
+import sys
 import shutil
 from datetime import datetime
 from subprocess import Popen, PIPE
 import pyodbc
-import CommonFunc
+import common_funcs
 from timeit import default_timer as timer
 import logging
 
@@ -35,8 +36,7 @@ logger.setLevel(logging.INFO)
 
 # define file handler and set formatter
 file_handler = logging.FileHandler('c:\\logs\\getclamps.log')
-formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s'
-                              , datefmt='%m/%d/%Y %I:%M:%S %p')
+formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 file_handler.setFormatter(formatter)
 
 # add file handler to logger
@@ -76,26 +76,21 @@ def check_ping(ip):
 def update_machines(filename, path):
     """Update machines via FTP return list of unsucessful transfers."""
     # create dictionary structure for machine IP addresses
-    machines = {'ACM365': '10.143.50.57', 'LACM387': '10.143.50.25',
-                'ACM366': '10.143.50.59', 'ACM363': '10.143.50.55',
-                'ACM362': '10.143.50.53', 'ACM369': '10.143.50.65',
-                'SLACM392': '10.143.50.203', 'ACM353': '10.143.50.161',
-                'ACM361': '10.143.50.51', 'ACM355': '10.143.50.165',
-                'ACM354': '10.143.50.163', 'ACM351': '10.143.50.157',
-                'ACM350': '10.143.50.155', 'LACM384': '10.143.50.21',
-                'LACM383': '10.143.50.23', 'ACM372': '10.143.50.69',
-                'ACM373': '10.178.4.111', 'ACM367': '10.143.50.61',
-                'ACM374': '10.143.50.73', 'ACM375': '10.143.50.75',
-                'LACM390': '10.143.50.27', 'LACM391': '10.143.50.31',
-                'LACM385': '10.143.50.13', 'LACM381': '10.143.50.15',
-                'LACM382': '10.143.50.17', 'LACM386': '10.143.50.19',
-                'ACM376': '10.143.50.77', 'LACM388': '10.143.50.87',
-                'CG002': '10.143.50.123', 'CG001': '10.143.50.121',
-                'LACM393': '10.143.50.215', 'SLACM389': '10.143.50.128',
-                'ACM356': '10.143.50.200'
+    machines = {'ACM365': '10.143.50.57', 'LACM387': '10.143.50.25', 'ACM366': '10.143.50.59',
+                'ACM363': '10.143.50.55', 'ACM362': '10.143.50.53', 'ACM369': '10.143.50.65',
+                'SLACM392': '10.143.50.203', 'ACM353': '10.143.50.161', 'ACM361': '10.143.50.51',
+                'ACM355': '10.143.50.165', 'ACM354': '10.143.50.163', 'ACM351': '10.143.50.157',
+                'ACM350': '10.143.50.155', 'LACM384': '10.143.50.21', 'LACM383': '10.143.50.23',
+                'ACM372': '10.143.50.69', 'ACM367': '10.143.50.61', 'ACM374': '10.143.50.73',
+                'ACM375': '10.143.50.75', 'LACM390': '10.143.50.27', 'LACM391': '10.143.50.31',
+                'LACM385': '10.143.50.13', 'LACM381': '10.143.50.15', 'LACM382': '10.143.50.17',
+                'LACM386': '10.143.50.19', 'ACM376': '10.143.50.77', 'LACM388': '10.143.50.87',
+                'CG002': '10.143.50.123', 'CG001': '10.143.50.121', 'LACM393': '10.143.50.215',
+                'SLACM389': '10.143.50.128', 'ACM356': '10.143.50.200'
                 }
     badmachlist = []
     screwfile = 'screws.csv'
+    # screwfile_mex = 'screws_m.csv'
     newpartflag = 'newparts.txt'
     for mach, ip in list(machines.items()):
         status = check_ping(ip)
@@ -116,6 +111,10 @@ def update_machines(filename, path):
             print("Transferring " + screwfile + ' To ' + mach)
             s.storbinary('STOR ' + screwfile, f)
             f.close()
+            # f = open(path + screwfile_mex, "rb")
+            # print("Transferring " + screwfile_mex + ' To ' + mach)
+            # s.storbinary('STOR ' + screwfile_mex, f)
+            # f.close()
             f = open(path + newpartflag, "rb")
             print("Transferring " + newpartflag + ' To ' + mach)
             s.storbinary('STOR ' + newpartflag, f)
@@ -123,9 +122,9 @@ def update_machines(filename, path):
             s.quit()
         except Exception as e:
             badmachlist.append(mach)
-            msg = 'Machine Update Failed: ' + mach + ': ' + str(e) + " [" + update_machines.__name__ + "]"
+            msg = 'Machine Update Failed: ' + mach + ': ' + str(e) + " [" + sys._getframe(0).f_code.co_name + "]"
             logger.error(msg)
-            CommonFunc.send_text('sgilmo', ['sgilmo'], msg)
+            common_funcs.send_text(msg)
             print(msg)
         else:
             msg = "FTP Transfer Time for " + mach + " was " + str(round((timer() - start), 3)) + " sec"
@@ -155,8 +154,8 @@ def log_bad_machines(machlist, path):
         out.writerows([machlist])
         outputfile.close()
         # Send the Email
-        CommonFunc.send_email(machlist, "The Following Machine Connections Failed",
-                              "The Following Machines are not Connecting to the network:\n\n")
+        common_funcs.send_email(machlist, "The Following Machine Connections Failed",
+                                "The Following Machines are not Connecting to the network:\n\n")
     return
 
 
@@ -187,13 +186,13 @@ def check_maint_files(mpath, qpath):
             newfiles.append(filename)
         if len(newfiles) > 0:
             print(str(len(newfiles)) + ' Files Found')
-            CommonFunc.send_email(newfiles, "File(s) Added to MAINT Directory",
-                                  "The following file(s) need to be reviewed:\n\n")
+            common_funcs.send_email(newfiles, "File(s) Added to MAINT Directory",
+                                    "The following file(s) need to be reviewed:\n\n")
             print('Done')
     except Exception as e:
         msg = 'Maint File Sweep Failed: ' + ': ' + str(e) + " [" + check_maint_files.__name__ + "]"
         logger.error(msg)
-        CommonFunc.send_text('sgilmo', ['sgilmo'], msg)
+        common_funcs.send_text(msg)
         print(msg)
     return
 
@@ -223,6 +222,20 @@ def get_file_items(dbase, path):
     return dskfile
 
 
+def get_file_screws(path):
+    """Get screw data from screws.csv and load it into dskfile.
+    """
+    dskfile = []
+    start = timer()
+    inputfile = open(path + "screws.csv")
+    reader = csv.reader(inputfile, delimiter=',', quoting=csv.QUOTE_NONE)
+    for data in reader:
+        dskfile.append(data[:3])
+    inputfile.close()
+    print(str(len(dskfile)) + " CSV Records Processed in " + str(round((timer() - start), 3)) + " sec")
+    return dskfile
+
+
 def get_filemaker_items():
     """Get Current part data file from Filemaker database."""
     start = timer()
@@ -233,9 +246,9 @@ def get_filemaker_items():
     print("Executing Query on FileMaker. Go get a beer, this will take a while!")
     sql = """
             SELECT Ourpart,"Band A Part Number", "Housing A Part Number",
-                "Screw Part Number" AS Screw, "Band Feed from Band data",
-                "Ship Diam Max", "Ship Diam Min", "Hex Size", "Band_Thickness",
-                "Band_Width", "CameraInspectionRequired", "ScrDrvChk"
+                "Screw Part Number", "Band Feed from Band data",
+                "Ship Diam Max QA Alternate", "Ship Diam Min", "Hex Size", "Band_Thickness", "Band_Width", 
+                "CameraInspectionRequired", "ScrDrvChk"
             FROM tbl8Tridon 
             WHERE  ("Band Feed from Band data" IS NOT NULL)
                 AND (Ourpart IS NOT NULL) AND (RIGHT(Ourpart,1) <> '\r')
@@ -257,14 +270,14 @@ def get_filemaker_items():
         cursor.execute(sql)
         result = cursor.fetchall()
     except Exception as e:
-        msg = 'FileMaker Query Failed: ' + str(e) + " [" + get_filemaker_items.__name__ + "]"
+        msg = 'FileMaker Query Failed: ' + str(e) + " [" + sys._getframe(0).f_code.co_name + "]"
         logger.error(msg)
-        result = []
         print(msg)
+        common_funcs.send_text(msg)
+        sys.exit(1)
     else:
         msg = str(len(result)) + " FM Records Processed in " + str(round((timer() - start), 3)) + " sec."
         print(msg)
-
     dbase = []
     start = timer()
     for row in result:
@@ -285,14 +298,16 @@ def update_db(dbase):
         cursor.execute("TRUNCATE TABLE production.parts")
         dbcnxn.commit()
     except Exception as e:
-        msg = 'MSSQL Table Deletion Failed: ' + str(e) + " [" + update_db.__name__ + "]"
+        msg = 'MSSQL Table Deletion Failed: ' + str(e) + " [" + sys._getframe(0).f_code.co_name + "]"
         logger.error(msg)
+        common_funcs.send_text(msg)
+        sys.exit(1)
     else:
         print("Delete Time = " + str(round((timer() - start), 3)) + " sec")
     # Load part data onto SQL server
     sql = """INSERT INTO production.parts (PartNumber,Band,Housing,Screw,Feed,
                     DiaMax,DiaMin,HexSz,BandThickness,BandWidth,CamInspect,ScrDrvChk)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?);"""
+                    VALUES (?,?,?,?,?,?,?,?,?,round(?,3),?,?);"""
     try:
         start = timer()
         cursor.executemany(sql, dbase)
@@ -301,30 +316,69 @@ def update_db(dbase):
         msg = 'MSSQL Table Update Failed: ' + str(e) + " [" + update_db.__name__ + "]"
         logger.error(msg)
         print(msg)
+        common_funcs.send_text(msg)
     else:
         print(str(len(dbase)) + " MSSQL Records Processed in " + str(round((timer() - start), 3)) + " sec")
     dbcnxn.close()
     return dbase
 
 
-# noinspection DuplicatedCode,DuplicatedCode
+def update_scrdb(dbase):
+    """ Add part data to SQL server database"""
+    dbcnxn = pyodbc.connect(CONNECTION)
+    cursor = dbcnxn.cursor()
+    cursor.fast_executemany = True
+    start = timer()
+    try:
+        cursor.execute("TRUNCATE TABLE production.screws")
+        dbcnxn.commit()
+    except Exception as e:
+        msg = 'MSSQL Table Deletion Failed: ' + str(e) + " [" + sys._getframe(0).f_code.co_name + "]"
+        logger.error(msg)
+        common_funcs.send_text(msg)
+        sys.exit(1)
+    else:
+        print("Delete Time = " + str(round((timer() - start), 3)) + " sec")
+    # Load part data onto SQL server
+    sql = """INSERT INTO production.screws (screw_num,screw_desc,screw_ht)
+                    VALUES (?,?,round(?,3));"""
+    try:
+        start = timer()
+        cursor.executemany(sql, dbase)
+        dbcnxn.commit()
+    except Exception as e:
+        msg = 'MSSQL Table Update Failed: ' + str(e) + " [" + update_scrdb.__name__ + "]"
+        logger.error(msg)
+        print(msg)
+        common_funcs.send_text(msg)
+    else:
+        print(str(len(dbase)) + " MSSQL Records Processed in " + str(round((timer() - start), 3)) + " sec")
+    dbcnxn.close()
+    return
+
+
 def cleandata(row):
     """ Cleanup bad data in database row"""
+    # If Ship Dia is Null, make it 0.00
     if row[5] == "":
         row[5] = '0.00'
     if row[6] == "":
         row[6] = '0.00'
     # Get rid of bad part number entry
     row[0] = row[0].replace('\xa0', '')
+    # Make sure Cam Inspect and Screwdriver Check field are all caps
+    row[10] = row[10].upper()
+    row[11] = row[11].upper()
     # Get rid of leading and following spaces
-    for x in range(11):
+    for x in range(12):
         try:
             row[x] = str(row[x]).strip()
         except Exception as e:
-            msg = 'Record Stripping Failed: ' + str(e) + " [" + cleandata.__name__ + "]"
+            msg = 'Record Stripping Failed: ' + str(e) + " [" + sys._getframe(0).f_code.co_name + "]"
             logger.error(msg)
             print(msg)
-    return CommonFunc.scrub_data(row)
+            common_funcs.send_text(msg)
+    return common_funcs.scrub_data(row)
 
 
 def main():
@@ -332,8 +386,8 @@ def main():
     # Define file paths
     partdatapath = "\\Inetpub\\ftproot\\acmparts\\"
     parthistpath = "\\Inetpub\\ftproot\\acmparts\\history\\"
-    maintpath = "\\\\tn-san-fileserv\\Engineering Data\\Elab\\Machines\\MAINT\\"
-    quepath = "\\\\tn-san-fileserv\\Engineering Data\\Elab\\Machines\\ReviewQue\\"
+    maintpath = "\\\\tn-san-fileserv\\dept\\Engineering\\Engineering Data\\Elab\\Machines\\MAINT\\"
+    quepath = "\\\\tn-san-fileserv\\dept\\Engineering\\Engineering Data\\Elab\\Machines\\ReviewQue\\"
 
     start = timer()
     print('\n\n\n')
@@ -344,7 +398,6 @@ def main():
     dskfile = get_file_items(dbase, partdatapath)
 
     if dbase[0:] != dskfile[0:]:
-        # print('Part file different, replacing part file and sending to machines')
         # Log differences
         diffs = [c[0] for c in dbase[0:] if c not in dskfile[0:]]
         num_diffs = str(len(diffs))
@@ -363,11 +416,12 @@ def main():
         out.writerows(dbase)
         outputfile.close()
         # Send to machines and log bad transfers
-        # log_bad_machines(update_machines('parts.csv', partdatapath), partdatapath)
+        log_bad_machines(update_machines('parts.csv', partdatapath), partdatapath)
     else:
         print('Files Identical, No Need to Replace')
     # Check Maintenance Directory for New Files
-    # check_maint_files(maintpath, quepath)
+    check_maint_files(maintpath, quepath)
+    update_scrdb(get_file_screws(partdatapath))
     msg = "Total Time = " + str(round((timer() - start), 3)) + " sec"
     logger.info(msg)
     print(msg)

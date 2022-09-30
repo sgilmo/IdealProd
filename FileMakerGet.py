@@ -3,17 +3,21 @@
 # !/usr/bin/env python
 
 import pyodbc
-import CommonFunc
+import common_funcs
+import os
 
 
 def get_filemaker_items():
     """Get Current part data file from Filemaker database."""
+    print('Connecting to FileMaker Server, it will take a bit\n\n')
     cnxn = pyodbc.connect('DSN=FM Clamp ODBC;UID=FMODBC;PWD=FMODBC')
     cursor = cnxn.cursor()
+    os.system('cls')
     print('Connected to FileMaker Server\n\n')
     input1 = input('Enter Part Number: ')
     input1 = "'" + input1 + "'"
     print('\n')
+    os.system('cls')
     sql = """
             SELECT Ourpart,"Band A Part Number", "Housing A Part Number",
                 "Screw Part Number" AS Screw, "Band Feed from Band data",
@@ -29,18 +33,12 @@ def get_filemaker_items():
     for row in cursor:
         i += 1
         # f.write(row[0] + '\n')
-        print('Part: ' + str(row[0]))
-        print('Band: ' + str(row[1]))
-        print('Housing: ' + str(row[2]))
-        print('Screw: ' + str(row[3]))
-        print('Bandfeed: ' + str(row[4]))
-        print('Ship Dia Max: ' + str(row[5]))
-        print('Ship Dia Min: ' + str(row[6]))
-        print('Hex Size: ' + str(row[7]))
-        print('Band Thickness: ' + str(row[8]))
-        print('Band Width: ' + str(row[9]))
-        print('Camera Inspect: ' + str(row[10]))
-        print('Screwdriver Check: ' + str(row[11]))
+        print('Part: ' + str(row[0]) + '\n')
+        print('Band: ' + str(row[1]), 'Bandfeed: ' + str(row[4]), 'Housing: ' + str(row[2]),
+              'Screw: ' + str(row[3]), 'Hex Size: ' + str(row[7]))
+        print('Ship Dia Min: ' + str(row[6]), 'Ship Dia Max: ' + str(row[5]))
+        print('Band Thickness: ' + str(row[8]), 'Band Width: ' + str(row[9]))
+        print('Camera: ' + str(row[10]), 'Screwdriver Check: ' + str(row[11]))
     cnxn.close()
     if len(row) == 0:
         print("No Part Found")
@@ -62,7 +60,7 @@ def cleandata(row):
         except Exception as e:
             msg = 'Machine Update Failed: ' + str(e)
             print(msg)
-    return CommonFunc.scrub_data(row)
+    return common_funcs.scrub_data(row)
 
 
 def main():

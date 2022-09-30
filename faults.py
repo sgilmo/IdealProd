@@ -10,10 +10,10 @@ import csv
 import datetime
 import os
 import shutil
-import platform
+import pandas as pd
 import pyodbc
 import logging
-import CommonFunc
+import common_funcs
 from datetime import date
 
 # Setup Logging
@@ -35,15 +35,6 @@ autocommit=true;
 UID=production;
 PWD=Auto@matics;
 """
-if platform.release() == 'XP':
-    CONNECTION = """
-    Driver={SQL Server Native Client 10.0};
-    Server=tn-sql14;
-    Database=autodata;
-    autocommit=true;
-    UID=production;
-    PWD=Auto@matics;
-    """
 
 
 def log_bad_row(badrow, machine):
@@ -65,15 +56,22 @@ def get_faults():
 
     # Set path to data directories
     dirpath = "\\Inetpub\\ftproot\\acmlogs\\"
+    archive_path = "\\Inetpub\\ftproot\\fault_archive\\"
     today = date.today()
 
     # Get List of Data Files, Parse their Content and Insert into Database
+    # str(datetime.timedelta(seconds=int(row[5]))),
     dirlist = os.listdir(dirpath)
     for machine in dirlist:
         fltdatapath = dirpath + machine + "\\"
-        print("Opening Folder: " + machine)
         filelist = os.listdir(fltdatapath)
         for filename in filelist:
+            if filename[len(filename) - 3:] == 'csv':
+                print("Processing Fault Data for " + machine + ' File: ' + filename)
+            else:
+                print("No Fault Files to Process for " + machine + ' File: ' + filename)
+                continue
+
             if filename != 'Archive' and filename != 'logs' and filename != 'fltdata.csv' \
                     and filename != 'badfiles' and filename != 'FailedScrews' and filename != 'FailedLoks' \
                     and filename != 'temp' and filename != 'PassedLoks':
@@ -83,12 +81,13 @@ def get_faults():
                 next(parser)
                 badfile = 0
                 for row in parser:
-                    if not CommonFunc.check_for_int(row[5]):
+                    if not common_funcs.check_for_int(row[5]):
                         continue
-                    if len(row) != 6 or int(row[5]) >= 86399:
+                    if len(row) < 6 or int(row[5]) >= 86399:
                         continue
                     try:
-                        dtnm = datetime.datetime.strptime(row[0], '%m/%d/%y')
+                        # dtnm = datetime.datetime.strptime(row[0], '%m/%d/%Y')
+                        dtnm = pd.to_datetime(row[0])
                     except pyodbc.Error:
                         log_bad_row(row, machine)
                         badfile = 1
@@ -96,10 +95,38 @@ def get_faults():
                         print(msg)
                         logger.error(msg + " [" + get_faults.__name__ + "]")
                         continue
-                    sql = """INSERT INTO production.machflts (machine, date, shift, operator, fault, duration)
-                             VALUES (?, ?, ?, ?, ?, ?);"""
-                    rowdata = (machine.upper(), row[0] + " " + row[1], row[2].upper(), row[3].rstrip(), row[4].rstrip(),
-                               str(datetime.timedelta(seconds=int(row[5]))))
+
+                    if len(row) == 6:
+                        sql = """
+                            INSERT INTO 
+                                 production.machflts (machine, date, shift, operator, fault, duration)
+                            VALUES (?, ?, ?, ?, ?, ?);
+                        """
+                        rowdata = (
+                                   machine.upper(),
+                                   row[0] + " " + row[1],
+                                   row[2].upper(),
+                                   row[3].rstrip(),
+                                   row[4].rstrip(),
+                                   row[5]
+                                   )
+
+                    if len(row) == 7:
+                        sql = """
+                            INSERT INTO 
+                                 production.machflts (machine, date, shift, operator, fault, duration, part)
+                            VALUES (?, ?, ?, ?, ?, ?, ?);
+                        """
+                        rowdata = (
+                                   machine.upper(),
+                                   row[0] + " " + row[1],
+                                   row[2].upper(),
+                                   row[3].rstrip(),
+                                   row[4].rstrip(),
+                                   row[5],
+                                   row[6]
+                                   )
+
                     if dtnm.year >= today.year:
                         try:
                             cursor.execute(sql, rowdata)
@@ -119,6 +146,7 @@ def get_faults():
                     shutil.move(fltdatapath + filename,
                                 fltdatapath + 'badfiles\\' + filename)
                 else:
-                    os.remove(fltdatapath + filename)
+                    # os.remove(fltdatapath + filename)
+                    shutil.move(fltdatapath + filename, archive_path + machine + filename)
     dbcnxn.close()
     return

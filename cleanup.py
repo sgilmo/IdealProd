@@ -84,7 +84,7 @@ def cleanup(number_of_days, path):
 
 def main():
     """Main Function"""
-    number_of_days = 20
+    number_of_days = 10
     root = ('\\\\tn-san-fileserv\\TOOLING\\2794 ACM Screw Head Vision\\Camera\\Screw Images\\Bad\\',
             '\\\\tn-san-fileserv\\TOOLING\\2874 FASTLOK AUTOMATION\\Vision\\Lok Images\\Bad\\',
             '\\\\tn-san-fileserv\\TOOLING\\2874 FASTLOK AUTOMATION\\Vision\\Lok Images\\Good\\')

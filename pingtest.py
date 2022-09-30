@@ -4,7 +4,7 @@
 """This program scans active equipment for network connectivity."""
 
 from subprocess import Popen, PIPE
-import CommonFunc
+import common_funcs
 
 # create dictionary structure for machine IP addresses
 
@@ -69,5 +69,5 @@ for hostName, hostIP in list(machines.items()):
 if len(badlist) > 0:
     print(str(len(badlist)) + ' Bad Connections' + " " + str(badlist))
     # Send the Email
-    CommonFunc.send_email(badlist, "Network Connection Failure",
-                          "The Following Devices are off the network:\n\n")
+    common_funcs.send_email(badlist, "Network Connection Failure",
+                            "The Following Devices are off the network:\n\n")

@@ -24,7 +24,7 @@ def read_pricelist():
     dbase = []
     print('Fetching Data File From Automation Direct Web Site')
     url = 'https://cdn.automationdirect.com/static/prices/prices_public.xlsx'
-    url = 'c:\\PriceLists\\prices_public.xlsx'
+    # url = 'c:\\PriceLists\\prices_public.xlsx'
     df = pd.read_excel(url, sheet_name='ADC Price List with Categories ',
                        usecols=[0, 2, 3])
     validity = df.values[3, 0]

@@ -3,13 +3,14 @@
 """Common Database Functions Used on the SQL Server"""
 
 import pyodbc
+import classes
 
 # Define Database Connection
 
 
 CONNSQL = """
-Driver={SQL Server Native Client 11.0};
-Server=tn-sql14;
+Driver={SQL Server};
+Server=tn-sql;
 Database=autodata;
 UID=production;
 PWD=Auto@matics;
@@ -103,3 +104,177 @@ def cleanup_pending():
     cursor.execute(strsql)
     dbcnxn.commit()
     return
+
+
+def get_spare_req():
+    """Get Spare Part Requests from SQL Server"""
+    dbcnxn = pyodbc.connect(CONNSQL)
+    cursor = dbcnxn.cursor()
+    strsql = """SELECT * FROM dbo.tblReqSpare
+                WHERE dbo.tblReqSpare.reqdate IS NULL
+            """
+    req_list = []
+    for row in cursor.execute(strsql):
+        req_spare = classes.Spare()
+        req_spare.desc = row.desc
+        req_spare.mfg_pn = row.mfgpn
+        req_spare.dwg = row.dwg
+        req_spare.mfg = row.mfg
+        req_spare.vendor = row.vendor
+        req_spare.unit = row.unit
+        req_spare.cost = row.cost
+        req_spare.qty_stock = row.qty_to_stock
+        req_spare.qty_per_use = row.qty_per_use
+        req_spare.depts = row.depts_using
+        req_spare.qty_annual_use = row.qty_annual_use
+        req_spare.req_by = row.req_by
+        req_spare.reorder_pt = row.reorder_pt
+        req_spare.reorder_amt = row.reorder_amt
+        req_spare.eng_partnumber = row.eng_partnumber
+        req_list.append(req_spare)
+    return req_list
+
+
+def update_req():
+    """Enter Timestamp for database records"""
+    dbcnxn = pyodbc.connect(CONNSQL)
+    cursor = dbcnxn.cursor()
+    strsql = """UPDATE dbo.tblReqSpare
+                SET dbo.tblReqSpare.reqdate = GETDATE()
+                WHERE dbo.tblReqSpare.reqdate IS NULL
+            """
+    cursor.execute(strsql)
+    dbcnxn.commit()
+    return
+
+
+def move_entered_spares():
+    """Move Entries from requested spare table that exist in tblInventory to
+    the Entered Table (The point when the part was entered in the system)"""
+    dbcnxn = pyodbc.connect(CONNSQL)
+    cursor = dbcnxn.cursor()
+
+    # Time stamp record when requested part is entered into the system (on the AS400).
+    strsql = """UPDATE dbo.tblReqSpare                                        
+                    SET dbo.tblReqSpare.reqdate = GETDATE()                    
+                    WHERE EXISTS(SELECT *
+                                  FROM dbo.tblInventory
+                                  WHERE RTRIM(dbo.tblInventory.MfgPn) = RTRIM(dbo.tblReqSpare.mfgpn)
+                                  )"""
+    cursor.execute(strsql)
+    dbcnxn.commit()
+
+    # Insert Engineering Part Number into records of parts on the AS400
+    strsql = """UPDATE dbo.tblReqSpare                                        
+                        SET dbo.tblReqSpare.eng_partnumber = dbo.tblInventory.EngPartNum
+                        FROM dbo.tblReqSpare
+                        INNER JOIN dbo.tblInventory ON RTRIM(dbo.tblReqSpare.mfgpn) = RTRIM(dbo.tblInventory.MfgPn)                    
+                        """
+    cursor.execute(strsql)
+    dbcnxn.commit()
+
+    # Move records to entered table after purchasing was notified
+    strsql = """INSERT INTO dbo.tblEnteredSpare
+                SELECT *
+                FROM dbo.tblReqSpare
+                WHERE EXISTS(SELECT *
+                              FROM dbo.tblInventory
+                              WHERE RTRIM(dbo.tblInventory.MfgPn) = RTRIM(dbo.tblReqSpare.mfgpn)
+                              )"""
+    cursor.execute(strsql)
+    dbcnxn.commit()
+
+    # Remove records from Request Table if it has been entered into the AS400
+    strsql = """DELETE FROM dbo.tblReqSpare 
+                    WHERE EXISTS (SELECT *
+                                  FROM dbo.tblInventory
+                                  WHERE RTRIM(dbo.tblInventory.MfgPn) = RTRIM(dbo.tblReqSpare.mfgpn)
+                                  )"""
+    cursor.execute(strsql)
+    dbcnxn.commit()
+    return
+
+
+def move_comp_spares():
+    """Move Entries from Entered spare table that exist in tblInventory
+    To Comp Table"""
+    dbcnxn = pyodbc.connect(CONNSQL)
+    cursor = dbcnxn.cursor()
+    # Time stamp record to indicate the day the part was in stock
+    strsql = """UPDATE dbo.tblEnteredSpare                    
+                        SET dbo.tblEnteredSpare.reqdate = GETDATE() 
+                        WHERE EXISTS(SELECT *
+                                      FROM dbo.tblInventory
+                                      WHERE dbo.tblInventory.MfgPn = dbo.tblEnteredSpare.mfgpn
+                                      AND dbo.tblInventory.OnHand > 0
+                                      )"""
+    cursor.execute(strsql)
+    dbcnxn.commit()
+
+    # Move record to tblCompSpare. This is an archive of created spare parts
+    strsql = """INSERT INTO dbo.tblCompSpare
+                SELECT *
+                FROM dbo.tblEnteredSpare
+                WHERE EXISTS(SELECT *
+                              FROM dbo.tblInventory
+                              WHERE dbo.tblInventory.MfgPn = dbo.tblEnteredSpare.mfgpn
+                              AND dbo.tblInventory.OnHand > 0
+                              )"""
+    cursor.execute(strsql)
+    dbcnxn.commit()
+
+    # Delete record in Entered Spare table if the part is in stock
+    strsql = """DELETE FROM dbo.tblEnteredSpare 
+                    WHERE EXISTS (SELECT *
+                                  FROM dbo.tblInventory
+                                  WHERE dbo.tblInventory.MfgPn = dbo.tblEnteredSpare.mfgpn
+                                  AND dbo.tblInventory.OnHand > 0
+                                  );"""
+    cursor.execute(strsql)
+    dbcnxn.commit()
+    return
+
+
+def find_new_obs():
+    """Find any newly obsoleted spare parts"""
+    dbcnxn = pyodbc.connect(CONNSQL)
+    cursor = dbcnxn.cursor()
+    new_obs = []
+    strsql = """SELECT * FROM [dbo].[vwObsSpares]
+                EXCEPT
+                SELECT * FROM [dbo].[tblObsOrig]
+                ;"""
+    cursor.execute(strsql)
+    for row in cursor:
+        new_obs.append(row)
+    return new_obs
+
+
+def insert_new_obs(new_obs):
+    """Insert New Obsoleted Parts into tblObsNew"""
+    dbcnxn = pyodbc.connect(CONNSQL)
+    cursor = dbcnxn.cursor()
+    for item in new_obs:
+        item_string = ', '.join('?' * len(item))
+        strsql = """INSERT INTO [dbo].[tblObsOrig]
+                    VALUES (%s);
+                    """ % item_string
+        cursor.execute(strsql, item)
+        dbcnxn.commit()
+    return
+
+
+def save_new_obs(new_obs):
+    """Insert New Obsoleted Parts into tblObsNew"""
+    dbcnxn = pyodbc.connect(CONNSQL)
+    cursor = dbcnxn.cursor()
+
+    for item in new_obs:
+        item_string = ', '.join('?' * len(item))
+        strsql = """INSERT INTO [dbo].[tblObsNew]
+                    VALUES (%s);
+                    """ % item_string
+        cursor.execute(strsql, item)
+        dbcnxn.commit()
+    return
+

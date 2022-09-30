@@ -17,8 +17,8 @@ import pyodbc
 # Old Driver
 # Driver={SQL Server Native Client 11.0};
 CONNECTION = """
-Driver={ODBC DRIVER 11 for SQL Server};
-Server=tn-sql14;
+Driver={SQL Server};
+Server=tn-sql;
 Database=autodata;
 autocommit=true;
 UID=production;
@@ -111,7 +111,8 @@ def send_email(data, subject, msghdr):
                        ' : ' + data[x][3] + "\n")
 
     # Configure Email
-    mailserver = "10.143.12.57"
+    # old mailserver = "10.143.12.57"
+    mailserver = "mail.idealtridon.com"
     sender = "towerofdespair@idealelab.com"
     to = [user + "@idealtridon.com"]
     text = ''.join(str_msg)
@@ -161,7 +162,7 @@ def main():
     for x in range(0, numip):
         while True:
             ans = input("Subsystem Type for IP# " + str(x + 1) +
-                        '(PLC, HMI, SERVO, CPU, etc...): ')
+                        '(PLC, HMI, SERVO, CPU, CAM, etc...): ')
             if len(ans) >= 3:
                 break
         casetype.append(ans)

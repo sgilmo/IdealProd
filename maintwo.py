@@ -5,7 +5,7 @@
 import os
 import time
 import ftplib
-import CommonFunc
+import common_funcs
 
 # Establish Some Globals
 
@@ -26,7 +26,7 @@ def send_files(filename, ip):
         return 1
     except Exception as e:
         msg = 'Maint HMI Update Failed: ' + filename + ': ' + str(e)
-        CommonFunc.send_text('sgilmo', ['sgilmo'], msg)
+        common_funcs.send_text(msg)
         print(msg)
         return 0
 
