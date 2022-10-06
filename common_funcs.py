@@ -146,8 +146,10 @@ def send_email_mach(datalist, subject, message_header):
     mailto = ["sgilmour@idealtridon.com", "steveg@sgilmo.com"]  # storing the receiver's mail id
     password = os.environ['TWILIO_ACCOUNT_SID']  # storing the password to log in
     mail_server = "mail.sgilmo.com"
+    # mail_server = "cas2013.ideal.us.com"
     # creating the SMTP server object by giving SMPT server address and port number
     smtp_server = smtplib.SMTP(mail_server, 587)
+    # smtp_server = smtplib.SMTP(mail_server)
     smtp_server.ehlo()  # setting the ESMTP protocol
     smtp_server.starttls()  # setting up to TLS connection
     smtp_server.ehlo()  # calling the ehlo() again as encryption happens on calling startttls()
@@ -179,12 +181,18 @@ Subject: %s
 
 def send_email_uptime(tbl_html, subject, message_header):
     """Send Email to Eng Group."""
-    sender = "datacollector@idealelab.com"  # storing the sender's mail id
-    mailto = ["sgilmour@idealtridon.com", "steveg@sgilmo.com"]  # storing the receiver's mail id
-    password = os.environ['TWILIO_ACCOUNT_SID']  # storing the password to log in
+    # storing the sender's mail id
+    sender = "datacollector@sgilmo.com"
+    # storing the receiver's mail id
+    mailto = ["sgilmour@idealtridon.com", "steveg@sgilmo.com", "bbrackman@idealtridon.com",
+              "jnapier@idealtridon.com", "jfinch@idealtridon.com", "thobbs@idealtridon.com"]
+    # storing the password to log in
+    password = os.environ['TWILIO_ACCOUNT_SID']
     mail_server = "mail.sgilmo.com"
+    # mail_server = "cas2013.ideal.us.com"
     # creating the SMTP server object by giving SMPT server address and port number
     smtp_server = smtplib.SMTP(mail_server, 587)
+    # smtp_server = smtplib.SMTP(mail_server)
     smtp_server.ehlo()  # setting the ESMTP protocol
     smtp_server.starttls()  # setting up to TLS connection
     smtp_server.ehlo()  # calling the ehlo() again as encryption happens on calling startttls()
@@ -214,7 +222,7 @@ Subject: %s
 
 def send_email_progflt(flt_desc, subject, message_header):
     """Send Program Faults Email to Elab Group."""
-    sender = "datacollector@idealelab.com"  # storing the sender's mail id
+    sender = "datacollector@sgilmo.com"  # storing the sender's mail id
     mailto = ["sgilmour@idealtridon.com", "steveg@sgilmo.com"]  # storing the receiver's mail id
     password = os.environ['TWILIO_ACCOUNT_SID']  # storing the password to log in
     mail_server = "mail.sgilmo.com"
