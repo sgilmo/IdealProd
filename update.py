@@ -194,7 +194,9 @@ def load_db(folder_name, table_name, dtype_dict):
         print('Problem Sending Data to SQL Server Table')
         print('Problem Detail: ' + str(e))
     else:
-        print('SQL Server Table ' + table_name + ' Updated')
+        msg = 'SQL Server Table ' + table_name + ' Updated'
+        print(msg)
+        logger.info(msg)
 
 
 def load_mach_prod(fpath, size):
@@ -769,7 +771,8 @@ def uptime_rpt():
     df_data = df1[['Machine', 'Uptime']]
     data = build_table(df_data, 'blue_light')
     yesterday = date.today() - timedelta(days=1)
-    common_funcs.send_email_uptime(data, 'Uptime Report', 'Uptime Report for ' + str(yesterday))
+    logger.info('Sending Email in uptime report')
+    common_funcs.send_email_uptime(data, 'Uptime Report', 'ACM Uptime Report for ' + str(yesterday))
     return
 
 
@@ -802,32 +805,39 @@ def main():
     # load_mach_runtime(runtimedatapath, 20)
 
     # Generate Checkin Report Email
+    logger.info('Running Checkins')
     checkins()
     # Generate Uptime Report Email
+    logger.info('Running Uptime Report')
     uptime_rpt()
     # Collect Machine Production data
+    logger.info('Running MachProd')
     dtypes = {"ID": 'int64', "Part": 'object', "Operator": 'object', "Machine": 'category', "Start": 'datetime64[ns]',
               "Stop": 'datetime64[ns]', "Shift": 'int', "Total": 'int', "PPM": 'int', "CO": 'int'}
     load_db('machprod', 'MachProd', dtypes)
 
     # Collect Shift Data
+    logger.info('Running MachShifts')
     dtypes = {"ID": 'int64', "ShiftDate": 'datetime64[ns]', "ShiftRecDate": 'datetime64[ns]', "Machine": 'object',
               "Operator": 'object',
               "ProdCnt": 'int', "Eff": 'float64', "NetEff": 'float64', "Util": 'float64', "Shift": 'int'}
     load_db('acmshift', 'MachShifts', dtypes)
 
     # Collect Job Data
+    logger.info('Running MachJobs')
     dtypes = {"ID": 'int64', "JobComp": 'datetime64[ns]', "JobStart": 'datetime64[ns]', "Machine": 'object',
               "PartNum": 'object', "JobCnt": 'int', "CoTime": 'int', "CoType": 'object', "SetupMan": 'object'}
     load_db('acmjob', 'MachJobs', dtypes)
 
     # Collect Operator Production Data
+    logger.info('Running OppProd')
     dtypes = {"ID": 'object', "part": 'object', "operator": 'object', "machine": 'object', "login": 'datetime64[ns]',
               "logout": 'datetime64[ns]', "shift": 'int', "production": 'int', "eff": 'float', "neteff": 'float',
               "util": 'float'}
     load_db('opprod', 'opprod', dtypes)
 
     # Collect Hourly Runtime Data
+    logger.info('Running Runtime')
     dtypes = {"ID": 'int64', "Machine": 'object', "RecDate": 'datetime64[ns]', "hr0": 'int', "hr1": 'int',
               "hr2": 'int', "hr3": 'int', "hr4": 'int', "hr5": 'int', "hr6": 'int', "hr7": 'int', "hr8": 'int',
               "hr9": 'int', "hr10": 'int', "hr11": 'int', "hr12": 'int', "hr13": 'int', "hr14": 'int', "hr15": 'int',
@@ -836,19 +846,25 @@ def main():
     load_db('acmrtdata', 'AcmRuntime', dtypes)
 
     # load_mach_production(proddatapath, 20)
+    logger.info('Running Strut 1')
     load_strut_production(strut1path, 20)
+    logger.info('Running Strut 2')
     load_strut_production(strut2path, 20)
+    logger.info('Running Strut 3')
     load_strut_production(strut3path, 20)
+    logger.info('Running Strut 4')
     load_strut_production(strut4path, 20)
+    logger.info('Running FastLok 1')
     load_fastlok_production(fastlok1path, 20)
+    logger.info('Running FastLok 2')
     load_fastlok_production(fastlok2path, 20)
-
+    logger.info('Running check_badfile')
     check_badfile()
-
+    logger.info('Running Get Faults')
     faults.get_faults()
 
-    # set_cam_files()
-
+    set_cam_files()
+    logger.info('Running log_conegage_data')
     log_conegage_data()
     logger.info("Total Execution Time = " + str(round((timer() - start), 3)) + " sec")
     return
