@@ -62,19 +62,18 @@ def get_faults():
     # Get List of Data Files, Parse their Content and Insert into Database
     # str(datetime.timedelta(seconds=int(row[5]))),
     dirlist = os.listdir(dirpath)
+    # Used to filter directory clutter
+    ignore_list = ['Archive', 'logs', 'fltdata.csv', 'badfiles', 'FailedScrews', 'FailedLoks', 'temp', 'PassedLoks']
     for machine in dirlist:
         fltdatapath = dirpath + machine + "\\"
         filelist = os.listdir(fltdatapath)
         for filename in filelist:
-            if filename[len(filename) - 3:] == 'csv':
+            if (filename[len(filename) - 3:] == 'csv') and (filename not in ignore_list):
                 print("Processing Fault Data for " + machine + ' File: ' + filename)
             else:
-                print("No Fault Files to Process for " + machine + ' File: ' + filename)
                 continue
 
-            if filename != 'Archive' and filename != 'logs' and filename != 'fltdata.csv' \
-                    and filename != 'badfiles' and filename != 'FailedScrews' and filename != 'FailedLoks' \
-                    and filename != 'temp' and filename != 'PassedLoks':
+            if filename not in ignore_list:
                 print("Processing: " + filename)
                 inputfile = open(fltdatapath + filename)
                 parser = csv.reader(inputfile)
