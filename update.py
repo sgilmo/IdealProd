@@ -13,18 +13,17 @@ Diameter test results.
 
 
 import os
-import sys
 import shutil
-import urllib
+# import urllib
+from urllib import parse
 import pandas as pd
 from datetime import date
 from datetime import timedelta
 from pretty_html_table import build_table
 from sqlalchemy import create_engine
 import csv
-import datetime
+from datetime import datetime
 import sqlalchemy.exc
-# from datetime import datetime
 import faults
 import pyodbc
 import common_funcs
@@ -66,7 +65,7 @@ server = 'tn-sql'
 database = 'autodata'
 driver = 'ODBC+Driver+17+for+SQL+Server'
 user = 'production'
-pwd = urllib.parse.quote_plus("Auto@matics")
+pwd = parse.quote_plus("Auto@matics")
 port = '1433'
 database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
 # Make Connection
@@ -94,10 +93,10 @@ def move_cam_files(fpath, dest):
     for item in dirs:
         if item[-3:] in types:
             create_time = os.path.getctime(fpath + item)
-            strdate = datetime.datetime.fromtimestamp(create_time).strftime('%Y-%m-%d')
-            yr = datetime.datetime.fromtimestamp(create_time).strftime('%Y')
-            mnth_num = datetime.datetime.fromtimestamp(create_time).strftime('%m')
-            mnth_short = datetime.datetime.fromtimestamp(create_time).strftime('%b')
+            strdate = datetime.fromtimestamp(create_time).strftime('%Y-%m-%d')
+            yr = datetime.fromtimestamp(create_time).strftime('%Y')
+            mnth_num = datetime.fromtimestamp(create_time).strftime('%m')
+            mnth_short = datetime.fromtimestamp(create_time).strftime('%b')
             dest_full = dest + yr + "\\" + mnth_num + " - " + mnth_short + "\\"
             full_path = dest_full + strdate
             if not os.path.isdir(dest):
@@ -130,8 +129,8 @@ def load_db(folder_name, table_name, dtype_dict):
     # Initialize DataFrames
     df1 = pd.DataFrame(columns=dtype_dict.keys())
     df1 = df1.astype(dtype_dict)
-    df3 = pd.DataFrame(columns=dtype_dict.keys())
     df3 = df1.astype(dtype_dict)
+    filename = ''
     # Get Files From Server
     filelist = os.listdir(fpath)
     # If no files, exit
@@ -230,182 +229,20 @@ def load_mach_prod(fpath, size):
                 dbcnxn.commit()
             except sqlalchemy.exc.IntegrityError:
                 msg = "Duplicate Primary Key " + str(row[0]) + " The Offending File is " + filename
-                logger.error(msg + " [" + sys._getframe(0).f_code.co_name + "]")
+                logger.error(msg + " [" + load_mach_prod.__name__ + "]")
                 BAD_FILE_LIST.append("MachProd_" + filename)
                 print(msg)
                 continue
             except pyodbc.Error as e:
                 print(rowdata)
                 msg = "Bad Data In File: " + str(row[0]) + ": " + str(e)
-                logger.error(msg + " [" + sys._getframe(0).f_code.co_name + "]")
+                logger.error(msg + " [" + load_mach_prod.__name__ + "]")
                 BAD_FILE_LIST.append("MachProd_" + filename)
                 print(msg)
                 continue
             else:
                 print(row[3] + " Entered into machprod database")
         inputfile.close()
-    dbcnxn.close()
-    return
-
-
-def load_mach_shifts(fpath, size):
-    """Load Shift Data into SQL Server."""
-    shiftbadfilepath = "\\Inetpub\\ftproot\\acmshiftbad\\"
-    dbcnxn = pyodbc.connect(CONNECTION_MSSQL)
-    cursor = dbcnxn.cursor()
-    # Loads shift data to SQL server
-    check_file_size(fpath, "Shift")  # Move zero size files to other directory
-    filelist = os.listdir(fpath)
-    for filename in filelist:
-        inputfile = open(fpath + filename)
-        parser = csv.reader(inputfile)
-        row = next(parser)
-        inputfile.close()
-        print("Processing Shift File: " + fpath + filename)
-        # Make sure there was some production
-        if int(row[5]) <= 20:
-            os.remove(fpath + filename)
-            continue
-        # Test That Data is Numeric for appropriate fields
-        if not common_funcs.check_for_int(row[5]):
-            msg = "Non Numeric Value for Shift Count: " + row[5] + ": File = " + filename
-            logger.error(msg + " [" + load_mach_shifts.__name__ + "]")
-            movefile(fpath + filename, shiftbadfilepath + filename)
-            continue
-        if not common_funcs.check_for_int(row[6]):
-            msg = "Non Numeric Value for Eff: " + row[6] + ": File = " + filename
-            logger.error(msg + " [" + load_mach_shifts.__name__ + "]")
-            movefile(fpath + filename, shiftbadfilepath + filename)
-            continue
-        if not common_funcs.check_for_int(row[7]):
-            msg = "Non Numeric Value for Net Eff: " + row[7] + ": File = " + filename
-            logger.error(msg + " [" + load_mach_shifts.__name__ + "]")
-            movefile(fpath + filename, shiftbadfilepath + filename)
-            continue
-        if not common_funcs.check_for_int(row[8]):
-            msg = "Non Numeric Value for Utilization: " + row[8] + ": File = " + filename
-            logger.error(msg + " [" + load_mach_shifts.__name__ + "]")
-            movefile(fpath + filename, shiftbadfilepath + filename)
-            continue
-        if not common_funcs.check_for_int(row[9]):
-            msg = "Non Numeric Value for Shift: " + row[9] + ": File = " + filename
-            logger.error(msg + " [" + load_mach_shifts.__name__ + "]")
-            movefile(fpath + filename, shiftbadfilepath + filename)
-            continue
-
-        if len(row) >= size:
-            sql = """INSERT INTO production.MachShifts (ID,ShiftDate,ShiftRecDate,Machine,Operator,ProdCnt,Eff,
-                                 NetEff,Util,Shift)
-                     VALUES (?,?,?,?,?,?,?,?,?,?);"""
-            try:
-                cursor.execute(sql, (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9]))
-                dbcnxn.commit()
-            except pyodbc.IntegrityError:
-                msg = "Duplicate Primary Key " + str(row[0]) + "File = " + filename
-                logger.error(msg + " [" + load_mach_shifts.__name__ + "]")
-                BAD_FILE_LIST.append("MachShifts_" + filename)
-                movefile(fpath + filename, shiftbadfilepath + filename)
-            except pyodbc.Error as e:
-                msg = "could not load " + filename + ": " + str(e)
-                logger.error(msg + " [" + load_mach_shifts.__name__ + "]")
-                BAD_FILE_LIST.append("MachShifts_" + filename)
-                movefile(fpath + filename, shiftbadfilepath + filename)
-            else:
-                # os.remove(path + filename)
-                print(row[3] + " Entered into shift production database")
-        # os.remove(fpath + filename)
-    dbcnxn.close()
-    return
-
-
-def load_mach_jobs(fpath, size):
-    """Load Job Data into SQL Server."""
-    jobbadfilepath = "\\Inetpub\\ftproot\\acmjobbad\\"
-    dbcnxn = pyodbc.connect(CONNECTION_MSSQL)
-    cursor = dbcnxn.cursor()
-    # Loads job data to SQL server
-    check_file_size(fpath, "Jobs")  # Move zero size files to other directory
-    filelist = os.listdir(fpath)
-    for filename in filelist:
-        inputfile = open(fpath + filename)
-        parser = csv.reader(inputfile)
-        row = next(parser)
-        inputfile.close()
-        print("Processing Job File: " + fpath + filename)
-        if len(row) < size:
-            continue
-
-        if int(row[5]) > 0:
-            sql = """INSERT INTO production.MachJobs (ID,JobComp,JobStart,Machine,PartNum,JobCnt,COTime,COType,SetupMan)
-                     VALUES (?,?,?,?,?,?,?,?,?);"""
-            try:
-                cursor.execute(sql, (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8]))
-                dbcnxn.commit()
-            except pyodbc.IntegrityError:
-                msg = "Duplicate Primary Key " + str(row[0]) + "File = " + filename
-                logger.error(msg + " [" + load_mach_jobs.__name__ + "]")
-                print(msg)
-                BAD_FILE_LIST.append("MachJobs_" + filename)
-                movefile(fpath + filename, jobbadfilepath + filename)
-            except pyodbc.Error as e:
-                msg = "could not load " + filename + ": " + str(e)
-                logger.error(msg + " [" + load_mach_jobs.__name__ + "]")
-                print(msg)
-                BAD_FILE_LIST.append("MachJobs_" + filename)
-                movefile(fpath + filename, jobbadfilepath + filename)
-            else:
-                print(row[3] + " Entered into job production database")
-        # os.remove(fpath + filename)
-    dbcnxn.close()
-    return
-
-
-def load_mach_runtime(fpath, size):
-    """Load Shift Data into SQL Server."""
-    # Check for Machine Check ins
-    checkins()
-    rtbadfilepath = "\\Inetpub\\ftproot\\acmrtbad\\"
-    dbcnxn = pyodbc.connect(CONNECTION_MSSQL)
-    cursor = dbcnxn.cursor()
-    # Loads shift data to SQL server
-    check_file_size(fpath, "Runtime")  # Move zero size files to other directory
-    filelist = os.listdir(fpath)
-    machlist = []
-    for filename in filelist:
-        inputfile = open(fpath + filename)
-        parser = csv.reader(inputfile)
-        row = next(parser)
-        machlist.append(row[1])
-        inputfile.close()
-        print("Processing Runtime File: " + fpath + filename)
-        if len(row) >= size:
-            sql = """INSERT INTO production.AcmRuntime (ID,Machine,RecDate,hr0,hr1,hr2,hr3,hr4,hr5,hr6,hr7,hr8,hr9,
-                                 hr10,hr11,hr12,hr13,hr14,hr15,hr16,hr17,hr18,hr19,hr20,hr21,hr22,hr23)
-                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);"""
-            try:
-                cursor.execute(sql, (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9],
-                                     row[10], row[11], row[12], row[13], row[14], row[15], row[16], row[17], row[18],
-                                     row[19], row[20], row[21], row[22], row[23], row[24], row[25], row[26]))
-                dbcnxn.commit()
-            except pyodbc.IntegrityError:
-                msg = "Duplicate Primary Key " + str(row[0]) + "File = " + filename
-                logger.error(msg + " [" + load_mach_runtime.__name__ + "]")
-                print(msg)
-                BAD_FILE_LIST.append("ACMrt_" + filename)
-                movefile(fpath + filename, rtbadfilepath + filename)
-            except pyodbc.Error:
-                msg = "could not load " + filename
-                logger.error(msg + " [" + load_mach_runtime.__name__ + "]")
-                print(msg)
-                BAD_FILE_LIST.append("ACMrt_" + filename)
-                movefile(fpath + filename, rtbadfilepath + filename)
-            else:
-                # os.remove(fpath + filename)
-                # fpath_arc = "\\Inetpub\\ftproot\\acmrtdata_archive\\"
-                # shutil.move(fpath + filename, fpath_arc + filename)
-                msg = row[1] + " Entered into runtime database"
-                print(msg)
-                logger.info(msg)
     dbcnxn.close()
     return
 
@@ -586,17 +423,12 @@ def check_file_size(srcpath, ftype):
     return
 
 
-def checkins():
+def checkins(dtypes):
     """report any machines that did not check in"""
     machs = ('ACM350', 'ACM351', 'ACM353', 'ACM354', 'ACM355', 'ACM356', 'ACM361', 'ACM362',
              'ACM363', 'ACM365', 'ACM366', 'ACM367', 'ACM369', 'ACM372', 'ACM374', 'ACM375',
              'ACM376', 'LACM381', 'LACM382', 'LACM383', 'LACM384', 'LACM385', 'LACM386',
              'LACM387', 'LACM388', 'LACM390', 'LACM391', 'LACM393', 'SLACM389', 'SLACM392')
-    dtypes = {"ID": 'int64', "Machine": 'object', "RecDate": 'datetime64', "hr0": 'int', "hr1": 'int',
-              "hr2": 'int', "hr3": 'int', "hr4": 'int', "hr5": 'int', "hr6": 'int', "hr7": 'int', "hr8": 'int',
-              "hr9": 'int', "hr10": 'int', "hr11": 'int', "hr12": 'int', "hr13": 'int', "hr14": 'int', "hr15": 'int',
-              "hr16": 'int', "hr17": 'int', "hr18": 'int', "hr19": 'int', "hr20": 'int', "hr21": 'int', "hr22": 'int',
-              "hr23": 'int'}
     fpath = "\\Inetpub\\ftproot\\acmrtdata\\"
 
     filelist = os.listdir(fpath)
@@ -691,7 +523,7 @@ def load_strut_production(fpath, size):
                 BAD_FILE_LIST.append("strut_" + filename)
                 movefile(fpath + filename, strutbadfilepath + filename)
             else:
-                os.remove(fpath + filename)
+                # os.remove(fpath + filename)
                 print(row[1] + filename + " Entered into strut production database")
     dbcnxn.close()
     return
@@ -741,14 +573,8 @@ def load_fastlok_production(fpath, size):
     return
 
 
-def uptime_rpt():
-    dtypes = {"ID": 'int64', "Machine": 'object', "RecDate": 'datetime64', "hr0": 'int', "hr1": 'int',
-              "hr2": 'int', "hr3": 'int', "hr4": 'int', "hr5": 'int', "hr6": 'int', "hr7": 'int', "hr8": 'int',
-              "hr9": 'int', "hr10": 'int', "hr11": 'int', "hr12": 'int', "hr13": 'int', "hr14": 'int', "hr15": 'int',
-              "hr16": 'int', "hr17": 'int', "hr18": 'int', "hr19": 'int', "hr20": 'int', "hr21": 'int', "hr22": 'int',
-              "hr23": 'int'}
+def uptime_rpt(dtypes):
     fpath = "\\Inetpub\\ftproot\\acmrtdata\\"
-
     filelist = os.listdir(fpath)
     if len(filelist) == 0:
         return
@@ -779,13 +605,8 @@ def uptime_rpt():
 def main():
     """Main Function."""
     # Set some paths
-    # jobfilepath = "\\Inetpub\\ftproot\\acmjob\\"
-    # shiftfilepath = "\\Inetpub\\ftproot\\acmshift\\"
-    # prodfilepath = "\\Inetpub\\ftproot\\machprod\\"
     shipdiapath = "\\Inetpub\\ftproot\\acmtests\\ShipDia\\"
     thickpath = "\\Inetpub\\ftproot\\acmtests\\Thickness\\"
-    # runtimedatapath = "\\Inetpub\\ftproot\\acmrtdata\\"
-    # proddatapath = "\\Inetpub\\ftproot\\acmproddata\\"
     strut1path = "\\Inetpub\\ftproot\\Wesanco\\Weld1\\"
     strut2path = "\\Inetpub\\ftproot\\Wesanco\\Weld2\\"
     strut3path = "\\Inetpub\\ftproot\\Wesanco\\Weld3\\"
@@ -800,16 +621,17 @@ def main():
     log_test_data(thickpath, "TG")
     log_test_data(shipdiapath, "CG")
 
-    # load_mach_shifts(shiftfilepath, 10)
-    # load_mach_jobs(jobfilepath, 9)
-    # load_mach_runtime(runtimedatapath, 20)
-
     # Generate Checkin Report Email
     logger.info('Running Checkins')
-    checkins()
+    dtypes = {"ID": 'int64', "Machine": 'object', "RecDate": 'datetime64', "hr0": 'int', "hr1": 'int',
+              "hr2": 'int', "hr3": 'int', "hr4": 'int', "hr5": 'int', "hr6": 'int', "hr7": 'int', "hr8": 'int',
+              "hr9": 'int', "hr10": 'int', "hr11": 'int', "hr12": 'int', "hr13": 'int', "hr14": 'int', "hr15": 'int',
+              "hr16": 'int', "hr17": 'int', "hr18": 'int', "hr19": 'int', "hr20": 'int', "hr21": 'int', "hr22": 'int',
+              "hr23": 'int'}
+    checkins(dtypes)
     # Generate Uptime Report Email
     logger.info('Running Uptime Report')
-    uptime_rpt()
+    uptime_rpt(dtypes)
     # Collect Machine Production data
     logger.info('Running MachProd')
     dtypes = {"ID": 'int64', "Part": 'object', "Operator": 'object', "Machine": 'category', "Start": 'datetime64[ns]',
@@ -836,8 +658,8 @@ def main():
               "util": 'float'}
     load_db('opprod', 'opprod', dtypes)
 
-    # Collect Hourly Runtime Data
-    logger.info('Running Runtime')
+    # Collect Hourly Runtime Data ACMs
+    logger.info('Running Runtime for ACMs')
     dtypes = {"ID": 'int64', "Machine": 'object', "RecDate": 'datetime64[ns]', "hr0": 'int', "hr1": 'int',
               "hr2": 'int', "hr3": 'int', "hr4": 'int', "hr5": 'int', "hr6": 'int', "hr7": 'int', "hr8": 'int',
               "hr9": 'int', "hr10": 'int', "hr11": 'int', "hr12": 'int', "hr13": 'int', "hr14": 'int', "hr15": 'int',
@@ -845,7 +667,6 @@ def main():
               "hr23": 'int'}
     load_db('acmrtdata', 'AcmRuntime', dtypes)
 
-    # load_mach_production(proddatapath, 20)
     logger.info('Running Strut 1')
     load_strut_production(strut1path, 20)
     logger.info('Running Strut 2')
@@ -855,6 +676,17 @@ def main():
     logger.info('Running Strut 4')
     load_strut_production(strut4path, 20)
     logger.info('Running FastLok 1')
+
+    # Collect Hourly Runtime Data for Struts
+    logger.info('Running Runtime for Wesanco Strut Welder 1')
+    load_db('Wesanco\\Weld1', 'tblStrut_Exp', dtypes)
+    logger.info('Running Runtime for Wesanco Strut Welder 2')
+    load_db('Wesanco\\Weld2', 'tblStrut_Exp', dtypes)
+    logger.info('Running Runtime for Wesanco Strut Welder 3')
+    load_db('Wesanco\\Weld3', 'tblStrut_Exp', dtypes)
+    logger.info('Running Runtime for Florida Strut Welder 1')
+    load_db('FlaStrut\\Weld1', 'tblStrut_Exp', dtypes)
+
     load_fastlok_production(fastlok1path, 20)
     logger.info('Running FastLok 2')
     load_fastlok_production(fastlok2path, 20)
