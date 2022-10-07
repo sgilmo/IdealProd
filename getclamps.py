@@ -154,8 +154,13 @@ def log_bad_machines(machlist, path):
         out.writerows([machlist])
         outputfile.close()
         # Send the Email
-        common_funcs.send_email(machlist, "The Following Machine Connections Failed",
-                                "The Following Machines are not Connecting to the network:\n\n")
+        if len(machlist) <= 1:
+            subject = "The Following Machine Could Not Recieve New Part Data Files"
+            header = "The Following Machine could not<br>be reached via FTP:\n\n"
+        else:
+            subject = "The Following Machines Could Not Recieve New Part Data Files"
+            header = "The Following Machines could not<br>be reached via FTP:\n\n"
+        common_funcs.send_email_mach(machlist, subject, header)
     return
 
 
