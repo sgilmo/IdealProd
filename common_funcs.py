@@ -19,7 +19,7 @@ def check_for_int(data):
         return False
 
 
-def send_email(datalist, subject, message_header):
+def send_emaill(datalist, subject, message_header):
     """Send Email to Elab."""
     # Generate string list for email message
     str_msg = [message_header]
@@ -82,8 +82,6 @@ def send_sparereq_email(datalist, subject, message_header):
     str_msg = [message_header]
     for files in datalist:
         str_msg.append("     " + files + "\n")
-    # Configure Email
-    mail_server = "cas2013.ideal.us.com"
     sender = "elab@idealtridon.com"
     # mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com", "kknight@idealtridon.com",
     # "rjobman@idealtridon.com"]
@@ -100,9 +98,7 @@ Subject: %s
 %s
         """ % (sender, ", ".join(mailto), subject, text)
     # Send Email
-    server = smtplib.SMTP(mail_server)
-    server.sendmail(sender, mailto, message)
-    server.quit()
+    send_email(sender, mailto, message)
     return
 
 
@@ -112,8 +108,6 @@ def send_newobs_email(datalist, subject, message_header):
     str_msg = [message_header]
     for files in datalist:
         str_msg.append("     " + files + "\n")
-    # Configure Email
-    mail_server = "cas2013.ideal.us.com"
     sender = "elab@idealtridon.com"
     mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com"]
     # mailto = ["sgilmour@idealtridon.com"] # For Debug/Testing
@@ -128,9 +122,7 @@ Subject: %s
 %s
         """ % (sender, ", ".join(mailto), subject, text)
     # Send Email
-    server = smtplib.SMTP(mail_server)
-    server.sendmail(sender, mailto, message)
-    server.quit()
+    send_email(sender, mailto, message)
     return
 
 
@@ -139,29 +131,33 @@ def set_precision(num, prec):
     return '{:.{}f}'.format(num, prec)
 
 
-def send_email_mach(datalist, subject, message_header):
-    """Send Email to Eng Group, with list of data."""
-    data_date = str((datetime.datetime.now() - datetime.timedelta(days=1)).strftime('%Y-%m-%d'))
-    sender = "datacollector@sgilmo.com"  # storing the sender's mail id
-    mailto = ["sgilmour@idealtridon.com", "steveg@sgilmo.com"]  # storing the receiver's mail id
+def send_email(sender, mailto, message):
     password = os.environ['TWILIO_ACCOUNT_SID']  # storing the password to log in
     mail_server = "mail.sgilmo.com"
-    # mail_server = "cas2013.ideal.us.com"
-    # creating the SMTP server object by giving SMPT server address and port number
     smtp_server = smtplib.SMTP(mail_server, 587)
-    # smtp_server = smtplib.SMTP(mail_server)
     smtp_server.ehlo()  # setting the ESMTP protocol
     smtp_server.starttls()  # setting up to TLS connection
     smtp_server.ehlo()  # calling the ehlo() again as encryption happens on calling startttls()
     smtp_server.login(sender, password)  # logging into out email id
+    # Send Email
+    smtp_server.sendmail(sender, mailto, message)
+    smtp_server.quit()
+    return
 
-    """Send Email to Elab."""
+
+def send_email_mach(datalist, subject, message_header):
+    """Send Email to Eng Group, with list of data."""
+    data_date = str((datetime.datetime.now() - datetime.timedelta(days=1)).strftime('%Y-%m-%d'))
+    sender = "datacollector@sgilmo.com"  # storing the sender's mail id
+    mailto = ["elab@idealtridon.com", "steveg@sgilmo.com"]  # storing the receiver's mail id
+
     # Generate string list for email message
     str_msg = ["<h3>" + message_header + "</h3>"]
-    for files in datalist:
-        str_msg.append("     " + files + "<br>")
-    str_msg.append("<br><br>" + "<b>Sincerely,<br><br><br> The Engineering Overlords</b><br><i>Data Missing For " +
-                   data_date + '</i>')
+    for item in datalist:
+        str_msg.append("     " + item + "<br>")
+    str_msg.append("<br><br>"
+                   + '<b>Sincerely,<br><br><br> The Engineering Overlords</b><br><i>Data Might be Missing For '
+                   + data_date + '</i>')
     # Configure Email
     text = ''.join(str_msg)
     message = """\
@@ -174,8 +170,7 @@ Subject: %s
 %s
         """ % (sender, ", ".join(mailto), subject, text)
     # Send Email
-    smtp_server.sendmail(sender, mailto, message)
-    smtp_server.quit()
+    send_email(sender, mailto, message)
     return
 
 
@@ -186,19 +181,7 @@ def send_email_uptime(tbl_html, subject, message_header):
     # storing the receiver's mail id
     mailto = ["sgilmour@idealtridon.com", "steveg@sgilmo.com", "bbrackman@idealtridon.com",
               "jnapier@idealtridon.com", "jfinch@idealtridon.com", "thobbs@idealtridon.com"]
-    # storing the password to log in
-    password = os.environ['TWILIO_ACCOUNT_SID']
-    mail_server = "mail.sgilmo.com"
-    # mail_server = "cas2013.ideal.us.com"
-    # creating the SMTP server object by giving SMPT server address and port number
-    smtp_server = smtplib.SMTP(mail_server, 587)
-    # smtp_server = smtplib.SMTP(mail_server)
-    smtp_server.ehlo()  # setting the ESMTP protocol
-    smtp_server.starttls()  # setting up to TLS connection
-    smtp_server.ehlo()  # calling the ehlo() again as encryption happens on calling startttls()
-    smtp_server.login('datacollector@sgilmo.com', password)  # logging into out email id
 
-    """Send Email to Elab."""
     # Generate string list for email message
     str_msg = ["<h3>" + message_header + "</h3>", "     " + tbl_html + "<br>",
                "<br><br>" + "<b>Sincerely,<br><br><br> The Engineering Overlords</b><br>"]
@@ -215,8 +198,7 @@ Subject: %s
 %s
         """ % (sender, ", ".join(mailto), subject, text)
     # Send Email
-    smtp_server.sendmail(sender, mailto, message)
-    smtp_server.quit()
+    send_email(sender, mailto, message)
     return
 
 
@@ -224,16 +206,7 @@ def send_email_progflt(flt_desc, subject, message_header):
     """Send Program Faults Email to Elab Group."""
     sender = "datacollector@sgilmo.com"  # storing the sender's mail id
     mailto = ["sgilmour@idealtridon.com", "steveg@sgilmo.com"]  # storing the receiver's mail id
-    password = os.environ['TWILIO_ACCOUNT_SID']  # storing the password to log in
-    mail_server = "mail.sgilmo.com"
-    # creating the SMTP server object by giving SMPT server address and port number
-    smtp_server = smtplib.SMTP(mail_server, 587)
-    smtp_server.ehlo()  # setting the ESMTP protocol
-    smtp_server.starttls()  # setting up to TLS connection
-    smtp_server.ehlo()  # calling the ehlo() again as encryption happens on calling startttls()
-    smtp_server.login('datacollector@sgilmo.com', password)  # logging into out email id
 
-    """Send Email to Elab."""
     # Generate string list for email message
     str_msg = ["<h3>" + message_header + "</h3>", "     " + flt_desc + "<br>",
                "<br><br>" + "<b>Sincerely,<br><br><br> The Engineering Overlords</b><br>"]
@@ -250,6 +223,5 @@ Subject: %s
 %s
         """ % (sender, ", ".join(mailto), subject, text)
     # Send Email
-    smtp_server.sendmail(sender, mailto, message)
-    smtp_server.quit()
+    send_email(sender, mailto, message)
     return
