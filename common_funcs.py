@@ -9,13 +9,13 @@ import datetime
 
 # Define some Functions
 
-
 def check_for_int(data):
     """Test if argument can be an integer"""
+    print(data)
     try:
         int(data)
         return True
-    except ValueError:
+    except:
         return False
 
 
@@ -83,10 +83,10 @@ def send_sparereq_email(datalist, subject, message_header):
     for files in datalist:
         str_msg.append("     " + files + "\n")
     sender = "elab@idealtridon.com"
-    # mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com", "kknight@idealtridon.com",
-    # "rjobman@idealtridon.com"]
+    mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com", "kknight@idealtridon.com",
+              "rjobman@idealtridon.com"]
     # mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com"] # For general beta testing
-    mailto = ["sgilmour@idealtridon.com"]  # For debug/testing
+    # mailto = ["sgilmour@idealtridon.com"]  # For debug/testing
     text = ''.join(str_msg)
     message = """\
 From: %s
@@ -132,14 +132,15 @@ def set_precision(num, prec):
 
 
 def send_email(sender, mailto, message):
-    password = os.environ['TWILIO_ACCOUNT_SID']  # storing the password to log in
-    mail_server = "mail.sgilmo.com"
-    smtp_server = smtplib.SMTP(mail_server, 587)
-    smtp_server.ehlo()  # setting the ESMTP protocol
-    smtp_server.starttls()  # setting up to TLS connection
-    smtp_server.ehlo()  # calling the ehlo() again as encryption happens on calling startttls()
-    smtp_server.login(sender, password)  # logging into out email id
     # Send Email
+    mail_server = "cas2013.ideal.us.com"
+    smtp_server = smtplib.SMTP(mail_server)
+    message = message + '<a href="https://www.idealtridon.com/idealtridongroup.html"> ' \
+                        '<img src="email_logo.png" alt="Ideal Logo"></a>'
+    # message = message + '<br><br><b>Sincerely,<br><br><br> The Engineering Overlords and Steve</b><br><br><br>' \
+    #                     '<a href="""https://www.idealtridon.com/idealtridongroup.html"""> ' \
+    #                     '<img src="""https://sgilmo.com/email_logo.png""" alt="""Ideal Logo"""></a>'
+
     smtp_server.sendmail(sender, mailto, message)
     smtp_server.quit()
     return
@@ -149,15 +150,14 @@ def send_email_mach(datalist, subject, message_header):
     """Send Email to Eng Group, with list of data."""
     data_date = str((datetime.datetime.now() - datetime.timedelta(days=1)).strftime('%Y-%m-%d'))
     sender = "datacollector@sgilmo.com"  # storing the sender's mail id
-    mailto = ["elab@idealtridon.com", "steveg@sgilmo.com"]  # storing the receiver's mail id
+    mailto = ["elab@idealtridon.com"]  # storing the receiver's mail id
 
     # Generate string list for email message
     str_msg = ["<h3>" + message_header + "</h3>"]
     for item in datalist:
         str_msg.append("     " + item + "<br>")
     str_msg.append("<br><br>"
-                   + '<b>Sincerely,<br><br><br> The Engineering Overlords</b><br><i>Data Might be Missing For '
-                   + data_date + '</i>')
+                   + '<b>Sincerely,<br><br><br> The Engineering Overlords</b>')
     # Configure Email
     text = ''.join(str_msg)
     message = """\
@@ -179,9 +179,9 @@ def send_email_uptime(tbl_html, subject, message_header):
     # storing the sender's mail id
     sender = "datacollector@sgilmo.com"
     # storing the receiver's mail id
-    mailto = ["sgilmour@idealtridon.com", "steveg@sgilmo.com", "bbrackman@idealtridon.com",
+    mailto = ["elab@idealtridon.com", "bbrackman@idealtridon.com",
               "jnapier@idealtridon.com", "jfinch@idealtridon.com", "thobbs@idealtridon.com"]
-
+    # mailto = ["sgilmour@idealtridon.com"]
     # Generate string list for email message
     str_msg = ["<h3>" + message_header + "</h3>", "     " + tbl_html + "<br>",
                "<br><br>" + "<b>Sincerely,<br><br><br> The Engineering Overlords</b><br>"]
@@ -205,7 +205,7 @@ Subject: %s
 def send_email_progflt(flt_desc, subject, message_header):
     """Send Program Faults Email to Elab Group."""
     sender = "datacollector@sgilmo.com"  # storing the sender's mail id
-    mailto = ["sgilmour@idealtridon.com", "steveg@sgilmo.com"]  # storing the receiver's mail id
+    mailto = ["sgilmour@idealtridon.com"]  # storing the receiver's mail id
 
     # Generate string list for email message
     str_msg = ["<h3>" + message_header + "</h3>", "     " + flt_desc + "<br>",
