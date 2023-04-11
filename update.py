@@ -118,6 +118,7 @@ def move_cam_files(fpath, dest):
 # Collect Machine Production data
 def load_db(folder_name, table_name, dtype_dict):
     """Load Operator Production Data into the SQL Server"""
+    mailto = ["sgilmour@idealtridon.com"]  # storing the receiver's mail id
     fpath = "\\Inetpub\\ftproot\\" + folder_name + "\\"
     check_dir(fpath)
     fpath_bad = "\\Inetpub\\ftproot\\" + folder_name + "_bad\\"
@@ -140,7 +141,7 @@ def load_db(folder_name, table_name, dtype_dict):
     else:
         print('Processing Folder ' + folder_name)
     for filename in filelist:
-        if (filename[:1] == '2') or (filename[:1] == '9'):
+        if ((filename[:1] == '2') or (filename[:1] == '9')) and len(filename) > 10:
             shutil.move(fpath + filename, fpath_obs + filename)
             print('File ' + filename + ' Moved to ' + fpath_obs)
             continue
@@ -151,6 +152,12 @@ def load_db(folder_name, table_name, dtype_dict):
             if table_name == 'MachProd':
                 df3 = (df['Part'] != 'None') & (df['Start'] != '0') & (df['Stop'] != '0')
             elif table_name == 'MachShifts':
+                valid = common_funcs.check_for_int(df.Eff) and common_funcs.check_for_int(df.NetEff) and \
+                        common_funcs.check_for_int(df.Util)
+                if not valid:
+                    df.Eff = 0.00
+                    df.NetEff = 0.00
+                    df.Util = 0.00
                 df['Operator'].fillna("Unknown", inplace=True)
                 df['Operator'].replace(to_replace="Please login", value='Unknown', inplace=True)
                 df3 = (df['ProdCnt'] > 0) & (df['ShiftDate'] != '0') & (df['ShiftRecDate'] != '0') & (df['Shift'] > 0)
@@ -159,20 +166,28 @@ def load_db(folder_name, table_name, dtype_dict):
                 df['CoType'].fillna("No Changes", inplace=True)
                 df['SetupMan'].replace(to_replace="Please login", value='Unknown', inplace=True)
                 df3 = (df['JobCnt'] > 0) & (df['JobComp'] != '0') & (df['JobStart'] != '0')
+            elif table_name == 'tblStrut_Exp':
+                df3 = df['RecDate'] != '0'
             elif table_name == 'AcmRuntime':
                 df3 = df['RecDate'] != '0'
             elif table_name == 'opprod':
+                valid = common_funcs.check_for_int(df.eff) and common_funcs.check_for_int(df.neteff) and \
+                        common_funcs.check_for_int(df.util)
+                if not valid:
+                    df.eff = 0.00
+                    df.neteff = 0.00
+                    df.util = 0.00
                 df3 = (df['login'] != '0')
             df = df.loc[df3]
             df = df.astype(dtype_dict)
             df1 = pd.concat([df1, df])
-        except ValueError as e:
-            print(filename + ' Had A Value Error Problem Loading Into DataFrame: Moving to ' + fpath_bad)
-            print('Problem Detail: ' + str(e))
-            shutil.move(fpath + filename, fpath_bad + filename)
-        except Exception as e:
-            print(filename + ' Had A Problem Loading Into DataFrame: Moving to ' + fpath_bad)
-            print('Problem Detail: ' + str(e))
+        except (ValueError, Exception) as e:
+            prob_desc = filename + ' Had A Problem Loading Into DataFrame: Moving to ' + fpath_bad
+            prob_detail = '<b>Problem Detail: </b><br>' + str(e)
+            message_header = 'Problem With <i>' + filename + '</i> :'
+            print(prob_desc)
+            print(prob_detail)
+            common_funcs.build_email(prob_detail, prob_desc, message_header, mailto)
             shutil.move(fpath + filename, fpath_bad + filename)
         else:
             # Copy Data File to Archive Folder
@@ -185,13 +200,17 @@ def load_db(folder_name, table_name, dtype_dict):
     except sqlalchemy.exc.IntegrityError as e:
         prob_desc = 'Problem Sending Data to SQL Server Table (Duplicate Primary Key)'
         prob_detail = '<b>Problem Detail: </b><br>' + str(e)
+        message_header = 'Problem With <i>' + filename + '</i> :'
         print(prob_desc)
         print(prob_detail)
-        message_header = 'Problem With <i>' + filename + '</i> :'
-        common_funcs.send_email_progflt(prob_detail, prob_desc, message_header)
+        common_funcs.build_email(prob_detail, prob_desc, message_header, mailto)
     except Exception as e:
-        print('Problem Sending Data to SQL Server Table')
-        print('Problem Detail: ' + str(e))
+        prob_desc = 'Problem Sending Data to SQL Server Table (Other)'
+        prob_detail = '<b>Problem Detail: </b><br>' + str(e)
+        message_header = 'Problem With <i>' + filename + '</i> :'
+        print(prob_desc)
+        print(prob_detail)
+        common_funcs.build_email(prob_detail, prob_desc, message_header, mailto)
     else:
         msg = 'SQL Server Table ' + table_name + ' Updated'
         print(msg)
@@ -425,7 +444,7 @@ def check_file_size(srcpath, ftype):
 
 def checkins(dtypes):
     """report any machines that did not check in"""
-    machs = ('ACM350', 'ACM351', 'ACM353', 'ACM354', 'ACM355', 'ACM356', 'ACM361', 'ACM362',
+    machs = ('ACM350', 'ACM351', 'ACM353', 'ACM354', 'ACM355', 'ACM357', 'ACM361', 'ACM362',
              'ACM363', 'ACM365', 'ACM366', 'ACM367', 'ACM369', 'ACM372', 'ACM374', 'ACM375',
              'ACM376', 'LACM381', 'LACM382', 'LACM383', 'LACM384', 'LACM385', 'LACM386',
              'LACM387', 'LACM388', 'LACM390', 'LACM391', 'LACM393', 'SLACM389', 'SLACM392')
@@ -441,13 +460,9 @@ def checkins(dtypes):
             df1 = pd.concat([df1, df])
         missing_mach = set(machs).difference(df1['Machine'])
         missed_machines = len(missing_mach)
-        subject = "Machines Not Checking In"
-        msg_header = "The Following " + str(missed_machines) + " Machines Did Not Check In:<br>"
-        if missed_machines == 1:
-            msg_header = "The Following Machine Did Not Check In:<br>"
         if missed_machines > 0:
-            common_funcs.send_email_mach(missing_mach, subject, msg_header)
-    return
+            return missing_mach
+    return []
 
 
 def movefile(oldfile, newfile):
@@ -463,6 +478,7 @@ def movefile(oldfile, newfile):
 
 def set_cam_files():
     """Move Camera Files to Server from Machines Equipped With Cameras"""
+    # TODO: Get network permissions to move files to tooling drive
     acms = ('LACM384', 'ACM367', 'LACM386', 'ACM372', 'LACM383', 'LACM385', 'LACM391', 'ACM366',
             'LACM382', 'LACM381', 'ACM362', 'LACM390', 'ACM373', 'ACM374', 'ACM375', 'ACM376', 'ACM361', 'ACM365')
     fastlok = ('FL2874', 'FL2874_2')
@@ -485,6 +501,7 @@ def set_cam_files():
         move_cam_files(fpath, dest)
 
 
+# TODO: Remove when use of load_db proves out
 def load_strut_production(fpath, size):
     """Load Hourly Strut Production Data into SQL Server."""
     strutbadfilepath = "\\Inetpub\\ftproot\\Wesanco\\Badfiles\\"
@@ -505,10 +522,11 @@ def load_strut_production(fpath, size):
             sql = """INSERT INTO production.tblStrut (Datestamp,Machine,RecDate,hr0,hr1,hr2,hr3,hr4,hr5,hr6,hr7,hr8,hr9,
                                  hr10,hr11,hr12,hr13,hr14,hr15,hr16,hr17,hr18,hr19,hr20,hr21,hr22,hr23)
                      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);"""
+            rows = (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9],
+                    row[10], row[11], row[12], row[13], row[14], row[15], row[16], row[17], row[18],
+                    row[19], row[20], row[21], row[22], row[23], row[24], row[25], row[26])
             try:
-                cursor.execute(sql, (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9],
-                                     row[10], row[11], row[12], row[13], row[14], row[15], row[16], row[17], row[18],
-                                     row[19], row[20], row[21], row[22], row[23], row[24], row[25], row[26]))
+                cursor.execute(sql, rows)
                 dbcnxn.commit()
             except pyodbc.IntegrityError:
                 msg = "Duplicate Primary Key " + str(row[0]) + "File = " + filename
@@ -529,6 +547,7 @@ def load_strut_production(fpath, size):
     return
 
 
+# TODO: Add to Pandas Data Model
 def load_fastlok_production(fpath, size):
     """Load Hourly FastLok Production Data into SQL Server."""
     fastlokbadfilepath = "\\Inetpub\\ftproot\\FastLok\\Badfiles\\"
@@ -549,10 +568,11 @@ def load_fastlok_production(fpath, size):
             sql = """INSERT INTO production.tblFastLok (Datestamp,Machine,RecDate,hr0,hr1,hr2,hr3,hr4,hr5,hr6,
                                  hr7,hr8,hr9,hr10,hr11,hr12,hr13,hr14,hr15,hr16,hr17,hr18,hr19,hr20,hr21,hr22,hr23)
                      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);"""
+            rows = (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9],
+                    row[10], row[11], row[12], row[13], row[14], row[15], row[16], row[17], row[18],
+                    row[19], row[20], row[21], row[22], row[23], row[24], row[25], row[26])
             try:
-                cursor.execute(sql, (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9],
-                                     row[10], row[11], row[12], row[13], row[14], row[15], row[16], row[17], row[18],
-                                     row[19], row[20], row[21], row[22], row[23], row[24], row[25], row[26]))
+                cursor.execute(sql, rows)
                 dbcnxn.commit()
             except pyodbc.IntegrityError:
                 msg = "Duplicate Primary Key " + str(row[0]) + "File = " + filename
@@ -573,8 +593,11 @@ def load_fastlok_production(fpath, size):
     return
 
 
-def uptime_rpt(dtypes):
+def uptime_rpt_old(dtypes, missing_mach):
     fpath = "\\Inetpub\\ftproot\\acmrtdata\\"
+    mailto = ["elab@idealtridon.com", "bbrackman@idealtridon.com",
+              "jfinch@idealtridon.com", "thobbs@idealtridon.com"]
+    # mailto = ["sgilmour@idealtridon.com", "elab@idealtridon.com"]
     filelist = os.listdir(fpath)
     if len(filelist) == 0:
         return
@@ -598,18 +621,63 @@ def uptime_rpt(dtypes):
     data = build_table(df_data, 'blue_light')
     yesterday = date.today() - timedelta(days=1)
     logger.info('Sending Email in uptime report')
-    common_funcs.send_email_uptime(data, 'Uptime Report', 'ACM Uptime Report for ' + str(yesterday))
+    if len(missing_mach) == 1:
+        data = data + '<br><br><i>Machine That Did Not Check In: ' + ' '.join(missing_mach) + '</i>'
+    if len(missing_mach) > 1:
+        data = data + '<br><br><i>Machines That Did Not Check In: ' + ', '.join(missing_mach) + '</i>'
+    common_funcs.build_email(data, 'Uptime Report', 'ACM Uptime Report for ' + str(yesterday), mailto)
+    return
+
+
+def get_uptime():
+    today = date.today()
+    yesterday = today - timedelta(days=1)
+    strsql = """SELECT AcmRuntime.Machine,
+                ROUND(
+                CAST((production.AcmRuntime.hr0 + production.AcmRuntime.hr1 + production.AcmRuntime.hr2 + 
+                production.AcmRuntime.hr3 + production.AcmRuntime.hr4 + production.AcmRuntime.hr5 + 
+                production.AcmRuntime.hr6 + production.AcmRuntime.hr7 + production.AcmRuntime.hr8 + 
+                production.AcmRuntime.hr9 + production.AcmRuntime.hr10 + production.AcmRuntime.hr11 + 
+                production.AcmRuntime.hr12 + production.AcmRuntime.hr13 + production.AcmRuntime.hr14 + 
+                production.AcmRuntime.hr15 + production.AcmRuntime.hr16 + production.AcmRuntime.hr17 + 
+                production.AcmRuntime.hr18 + production.AcmRuntime.hr19 + production.AcmRuntime.hr20 + 
+                production.AcmRuntime.hr21 + production.AcmRuntime.hr22 + production.AcmRuntime.hr23) AS FLOAT)/864,2)
+                AS Uptime
+                FROM [production].[AcmRuntime]            
+                WHERE
+                    AcmRuntime.RecDate = '%s'
+                ;""" % yesterday
+    df = pd.read_sql(strsql, engine)
+    return df
+
+
+def uptime_rpt(missing_mach):
+    mach_data = get_uptime()
+    mailto = ["elab@idealtridon.com", "bbrackman@idealtridon.com",
+              "jfinch@idealtridon.com", "thobbs@idealtridon.com"]
+    mailto = ["sgilmour@idealtridon.com", "elab@idealtridon.com"]
+    print(mach_data)
+    data = build_table(mach_data, 'blue_light')
+    yesterday = date.today() - timedelta(days=1)
+    logger.info('Sending Email in uptime report')
+    if len(missing_mach) == 1:
+        data = data + '<br><br><i>Machine That Did Not Check In: ' + ' '.join(missing_mach) + '</i>'
+    if len(missing_mach) > 1:
+        data = data + '<br><br><i>Machines That Did Not Check In: ' + ', '.join(missing_mach) + '</i>'
+    common_funcs.build_email(data, 'Uptime Report', 'ACM Uptime Report for ' + str(yesterday), mailto)
     return
 
 
 def main():
     """Main Function."""
     # Set some paths
+    # TODO: Delete unused paths when converted to Pandas data model (using load_db())
     shipdiapath = "\\Inetpub\\ftproot\\acmtests\\ShipDia\\"
     thickpath = "\\Inetpub\\ftproot\\acmtests\\Thickness\\"
     strut1path = "\\Inetpub\\ftproot\\Wesanco\\Weld1\\"
     strut2path = "\\Inetpub\\ftproot\\Wesanco\\Weld2\\"
     strut3path = "\\Inetpub\\ftproot\\Wesanco\\Weld3\\"
+    strut5path = "\\Inetpub\\ftproot\\Wesanco\\Weld4\\"
     strut4path = "\\Inetpub\\ftproot\\FlaStrut\\Weld1\\"
     fastlok1path = "\\Inetpub\\ftproot\\FastLok\\FL2874\\"
     fastlok2path = "\\Inetpub\\ftproot\\FastLok\\FL2874-2\\"
@@ -618,6 +686,7 @@ def main():
     logger.info("Program Started")
 
     # Collect Test data
+    # TODO: Convert to Pandas data model (using load_db())
     log_test_data(thickpath, "TG")
     log_test_data(shipdiapath, "CG")
 
@@ -628,10 +697,11 @@ def main():
               "hr9": 'int', "hr10": 'int', "hr11": 'int', "hr12": 'int', "hr13": 'int', "hr14": 'int', "hr15": 'int',
               "hr16": 'int', "hr17": 'int', "hr18": 'int', "hr19": 'int', "hr20": 'int', "hr21": 'int', "hr22": 'int',
               "hr23": 'int'}
-    checkins(dtypes)
+    missing_machines = checkins(dtypes)
     # Generate Uptime Report Email
     logger.info('Running Uptime Report')
-    uptime_rpt(dtypes)
+    uptime_rpt(missing_machines)
+    # uptime_rpt_new(missing_machines)
     # Collect Machine Production data
     logger.info('Running MachProd')
     dtypes = {"ID": 'int64', "Part": 'object', "Operator": 'object', "Machine": 'category', "Start": 'datetime64[ns]',
@@ -641,8 +711,8 @@ def main():
     # Collect Shift Data
     logger.info('Running MachShifts')
     dtypes = {"ID": 'int64', "ShiftDate": 'datetime64[ns]', "ShiftRecDate": 'datetime64[ns]', "Machine": 'object',
-              "Operator": 'object',
-              "ProdCnt": 'int', "Eff": 'float64', "NetEff": 'float64', "Util": 'float64', "Shift": 'int'}
+              "Operator": 'object', "ProdCnt": 'int', "Eff": 'float64', "NetEff": 'float64', "Util": 'float64',
+              "Shift": 'int'}
     load_db('acmshift', 'MachShifts', dtypes)
 
     # Collect Job Data
@@ -667,26 +737,36 @@ def main():
               "hr23": 'int'}
     load_db('acmrtdata', 'AcmRuntime', dtypes)
 
-    logger.info('Running Strut 1')
+    logger.info('Running Wesanco Strut Welder 1')
     load_strut_production(strut1path, 20)
-    logger.info('Running Strut 2')
+    logger.info('Running Wesanco Strut Welder 2')
     load_strut_production(strut2path, 20)
-    logger.info('Running Strut 3')
-    load_strut_production(strut3path, 20)
-    logger.info('Running Strut 4')
+    # logger.info('Running Wesanco Strut Welder 3')
+    # load_strut_production(strut3path, 20)
+    logger.info('Running Wesanco Strut Welder 4')
+    load_strut_production(strut5path, 20)
+    logger.info('Running Florida Strut Welder 1')
     load_strut_production(strut4path, 20)
-    logger.info('Running FastLok 1')
 
     # Collect Hourly Runtime Data for Struts
+    dtypes = {"Datestamp": 'int', "Machine": 'object', "RecDate": 'datetime64[ns]', "hr0": 'int', "hr1": 'int',
+              "hr2": 'int', "hr3": 'int', "hr4": 'int', "hr5": 'int', "hr6": 'int', "hr7": 'int', "hr8": 'int',
+              "hr9": 'int', "hr10": 'int', "hr11": 'int', "hr12": 'int', "hr13": 'int', "hr14": 'int', "hr15": 'int',
+              "hr16": 'int', "hr17": 'int', "hr18": 'int', "hr19": 'int', "hr20": 'int', "hr21": 'int', "hr22": 'int',
+              "hr23": 'int'}
     logger.info('Running Runtime for Wesanco Strut Welder 1')
     load_db('Wesanco\\Weld1', 'tblStrut_Exp', dtypes)
     logger.info('Running Runtime for Wesanco Strut Welder 2')
     load_db('Wesanco\\Weld2', 'tblStrut_Exp', dtypes)
-    logger.info('Running Runtime for Wesanco Strut Welder 3')
-    load_db('Wesanco\\Weld3', 'tblStrut_Exp', dtypes)
+    # logger.info('Running Runtime for Wesanco Strut Welder 3')
+    # load_db('Wesanco\\Weld3', 'tblStrut_Exp1', dtypes)
+    logger.info('Running Runtime for Wesanco Strut Welder 4')
+    load_db('Wesanco\\Weld4', 'tblStrut_Exp', dtypes)
     logger.info('Running Runtime for Florida Strut Welder 1')
     load_db('FlaStrut\\Weld1', 'tblStrut_Exp', dtypes)
 
+    # TODO: Remove when converted to Pandas data model
+    logger.info('Running FastLok 1')
     load_fastlok_production(fastlok1path, 20)
     logger.info('Running FastLok 2')
     load_fastlok_production(fastlok2path, 20)
@@ -695,6 +775,7 @@ def main():
     logger.info('Running Get Faults')
     faults.get_faults()
 
+    # TODO: Convert to Pandas data model (using load_db())
     set_cam_files()
     logger.info('Running log_conegage_data')
     log_conegage_data()
