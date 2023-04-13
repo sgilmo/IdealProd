@@ -55,12 +55,27 @@ PWD=Auto@matics;
 
 FORMAT = '%Y%m%d%H%M%S'
 
+# Define Some Globals
+
+# create dictionary structure for machine IP addresses
+MACHINES = {'ACM365': '10.143.50.57', 'LACM387': '10.143.50.25', 'ACM366': '10.143.50.59',
+            'ACM363': '10.143.50.55', 'ACM362': '10.143.50.53', 'ACM369': '10.143.50.65',
+            'SLACM392': '10.143.50.203', 'ACM353': '10.143.50.161', 'ACM361': '10.143.50.51',
+            'ACM355': '10.143.50.165', 'ACM354': '10.143.50.163', 'ACM351': '10.143.50.157',
+            'ACM350': '10.143.50.155', 'LACM384': '10.143.50.21', 'LACM383': '10.143.50.23',
+            'ACM372': '10.143.50.69', 'ACM367': '10.143.50.61', 'ACM374': '10.143.50.73',
+            'ACM375': '10.143.50.75', 'LACM390': '10.143.50.27', 'LACM391': '10.143.50.31',
+            'LACM385': '10.143.50.13', 'LACM381': '10.143.50.15', 'LACM382': '10.143.50.17',
+            'LACM386': '10.143.50.19', 'ACM376': '10.143.50.77', 'LACM388': '10.143.50.87',
+            'CG002': '10.143.50.123', 'CG001': '10.143.50.121', 'LACM393': '10.143.50.215',
+            'SLACM389': '10.143.50.128', 'ACM357': '10.143.50.66'
+            }
 
 # Define some functions
 
 
 def check_ping(ip):
-    """Check if Machine is online"""
+    """Check if Machine is on the network"""
     cmd = Popen("ping -n 1 " + ip, stdout=PIPE)
     hoststate = "Unknown"
     for line in cmd.stdout:
@@ -73,56 +88,63 @@ def check_ping(ip):
     return hoststate
 
 
-def update_machines(filename, path):
-    """Update machines via FTP return list of unsucessful transfers."""
-    # create dictionary structure for machine IP addresses
-    machines = {'ACM365': '10.143.50.57', 'LACM387': '10.143.50.25', 'ACM366': '10.143.50.59',
-                'ACM363': '10.143.50.55', 'ACM362': '10.143.50.53', 'ACM369': '10.143.50.65',
-                'SLACM392': '10.143.50.203', 'ACM353': '10.143.50.161', 'ACM361': '10.143.50.51',
-                'ACM355': '10.143.50.165', 'ACM354': '10.143.50.163', 'ACM351': '10.143.50.157',
-                'ACM350': '10.143.50.155', 'LACM384': '10.143.50.21', 'LACM383': '10.143.50.23',
-                'ACM372': '10.143.50.69', 'ACM367': '10.143.50.61', 'ACM374': '10.143.50.73',
-                'ACM375': '10.143.50.75', 'LACM390': '10.143.50.27', 'LACM391': '10.143.50.31',
-                'LACM385': '10.143.50.13', 'LACM381': '10.143.50.15', 'LACM382': '10.143.50.17',
-                'LACM386': '10.143.50.19', 'ACM376': '10.143.50.77', 'LACM388': '10.143.50.87',
-                'CG002': '10.143.50.123', 'CG001': '10.143.50.121', 'LACM393': '10.143.50.215',
-                'SLACM389': '10.143.50.128', 'ACM356': '10.143.50.200'
-                }
+def valid_ips(d, keys):
+    """Create new machine dictionary excluding offline machines"""
+    return {x: d[x] for x in d if x not in keys}
+
+
+def check_mach_conn():
+    """Check Machine Network Connections"""
     badmachlist = []
-    screwfile = 'screws.csv'
-    # screwfile_mex = 'screws_m.csv'
-    newpartflag = 'newparts.txt'
-    for mach, ip in list(machines.items()):
+    badmachmsg = []
+    for mach, ip in list(MACHINES.items()):
         status = check_ping(ip)
         if status != 'Alive':
             statedata = "Network Connection to " + mach + " at " + ip + " is " + status
-            logger.warning(statedata)
-            badmachlist.append(statedata)
-            continue
+            badmachmsg.append(statedata)
+            badmachlist.append(mach)
+    if len(badmachlist) > 0:
+        email_bad_machines(badmachmsg)
+    new_mach_dict = valid_ips(MACHINES, badmachlist)
+    return new_mach_dict
+
+
+def update_machines(filename, path, mach_dict):
+    """Update machines via FTP return list of unsucessful transfers."""
+    screwfile = 'screws.csv'
+    newpartflag = 'newparts.txt'
+    for mach, ip in list(mach_dict.items()):
         print("Transferring " + mach)
         try:
             start = timer()
             s = ftplib.FTP(ip, 'anonymous', 'anonymous')
             f = open(path + filename, "rb")
             print("Transferring " + filename + ' To ' + mach)
-            s.storbinary('STOR ' + filename, f)
+            if mach == 'ACM357':
+                loc_dest = 'STOR /MEMCARD1/' + filename
+                s.storbinary(loc_dest, f)
+            else:
+                s.storbinary('STOR ' + filename, f)
             f.close()
             f = open(path + screwfile, "rb")
             print("Transferring " + screwfile + ' To ' + mach)
-            s.storbinary('STOR ' + screwfile, f)
+            if mach == 'ACM357':
+                loc_dest = 'STOR /MEMCARD1/' + screwfile
+                s.storbinary(loc_dest, f)
+            else:
+                s.storbinary('STOR ' + screwfile, f)
             f.close()
-            # f = open(path + screwfile_mex, "rb")
-            # print("Transferring " + screwfile_mex + ' To ' + mach)
-            # s.storbinary('STOR ' + screwfile_mex, f)
-            # f.close()
             f = open(path + newpartflag, "rb")
             print("Transferring " + newpartflag + ' To ' + mach)
-            s.storbinary('STOR ' + newpartflag, f)
+            if mach == 'ACM357':
+                loc_dest = 'STOR /MEMCARD1/' + newpartflag
+                s.storbinary(loc_dest, f)
+            else:
+                s.storbinary('STOR ' + newpartflag, f)
             f.close()
             s.quit()
         except Exception as e:
-            badmachlist.append(mach)
-            msg = 'Machine Update Failed: ' + mach + ': ' + str(e) + " [" + sys._getframe(0).f_code.co_name + "]"
+            msg = 'Machine Update Failed: ' + mach + ': ' + str(e) + " [" + update_machines.__name__ + "]"
             logger.error(msg)
             common_funcs.send_text(msg)
             print(msg)
@@ -130,8 +152,7 @@ def update_machines(filename, path):
             msg = "FTP Transfer Time for " + mach + " was " + str(round((timer() - start), 3)) + " sec"
             logger.info(msg)
             print(msg)
-    print(badmachlist)
-    return badmachlist
+    return
 
 
 def save_history(filename, partpath, histpath):
@@ -141,26 +162,17 @@ def save_history(filename, partpath, histpath):
     return
 
 
-def log_bad_machines(machlist, path):
+def email_bad_machines(machlist):
     """Create a log file of machines that had connection issues."""
-    if not machlist:
-        if os.path.isfile(path + "badlist.csv"):
-            os.remove(path + "badlist.csv")
-        return
+    mailto = ["elab@idealtridon.com"]  # storing the receiver's mail id
+    # Send the Email
+    if len(machlist) > 1:
+        subject = "The Following Machines Could Not Recieve New Part Data Files"
+        header = "The Following Machines could not<br>be reached via FTP:\n\n"
     else:
-        # create file for nodes that did not connect
-        outputfile = open(path + "badlist.csv", "w", newline='')
-        out = csv.writer(outputfile, delimiter=',', quoting=csv.QUOTE_NONE)
-        out.writerows([machlist])
-        outputfile.close()
-        # Send the Email
-        if len(machlist) <= 1:
-            subject = "The Following Machine Could Not Recieve New Part Data Files"
-            header = "The Following Machine could not<br>be reached via FTP:\n\n"
-        else:
-            subject = "The Following Machines Could Not Recieve New Part Data Files"
-            header = "The Following Machines could not<br>be reached via FTP:\n\n"
-        common_funcs.send_email_mach(machlist, subject, header)
+        subject = "The Following Machine Could Not Recieve New Part Data Files"
+        header = "The Following Machine could not<br>be reached via FTP:\n\n"
+    common_funcs.build_email(machlist, subject, header, mailto)
     return
 
 
@@ -275,7 +287,7 @@ def get_filemaker_items():
         cursor.execute(sql)
         result = cursor.fetchall()
     except Exception as e:
-        msg = 'FileMaker Query Failed: ' + str(e) + " [" + sys._getframe(0).f_code.co_name + "]"
+        msg = 'FileMaker Query Failed: ' + str(e) + " [" + get_filemaker_items.__name__ + "]"
         logger.error(msg)
         print(msg)
         common_funcs.send_text(msg)
@@ -303,7 +315,7 @@ def update_db(dbase):
         cursor.execute("TRUNCATE TABLE production.parts")
         dbcnxn.commit()
     except Exception as e:
-        msg = 'MSSQL Table Deletion Failed: ' + str(e) + " [" + sys._getframe(0).f_code.co_name + "]"
+        msg = 'MSSQL Table Deletion Failed: ' + str(e) + " [" + update_db.__name__ + "]"
         logger.error(msg)
         common_funcs.send_text(msg)
         sys.exit(1)
@@ -338,7 +350,7 @@ def update_scrdb(dbase):
         cursor.execute("TRUNCATE TABLE production.screws")
         dbcnxn.commit()
     except Exception as e:
-        msg = 'MSSQL Table Deletion Failed: ' + str(e) + " [" + sys._getframe(0).f_code.co_name + "]"
+        msg = 'MSSQL Table Deletion Failed: ' + str(e) + " [" + update_scrdb.__name__ + "]"
         logger.error(msg)
         common_funcs.send_text(msg)
         sys.exit(1)
@@ -379,7 +391,7 @@ def cleandata(row):
         try:
             row[x] = str(row[x]).strip()
         except Exception as e:
-            msg = 'Record Stripping Failed: ' + str(e) + " [" + sys._getframe(0).f_code.co_name + "]"
+            msg = 'Record Stripping Failed: ' + str(e) + " [" + cleandata.__name__ + "]"
             logger.error(msg)
             print(msg)
             common_funcs.send_text(msg)
@@ -420,8 +432,9 @@ def main():
         out = csv.writer(outputfile, delimiter=',', quoting=csv.QUOTE_NONE)
         out.writerows(dbase)
         outputfile.close()
-        # Send to machines and log bad transfers
-        log_bad_machines(update_machines('parts.csv', partdatapath), partdatapath)
+        # Send to machines
+        mach_dict = check_mach_conn()
+        # update_machines('parts.csv', partdatapath, mach_dict)
     else:
         print('Files Identical, No Need to Replace')
     # Check Maintenance Directory for New Files
