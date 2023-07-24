@@ -63,12 +63,12 @@ MACHINES = {'ACM365': '10.143.50.57', 'LACM387': '10.143.50.25', 'ACM366': '10.1
             'SLACM392': '10.143.50.203', 'ACM353': '10.143.50.161', 'ACM361': '10.143.50.51',
             'ACM355': '10.143.50.165', 'ACM354': '10.143.50.163', 'ACM351': '10.143.50.157',
             'ACM350': '10.143.50.155', 'LACM384': '10.143.50.21', 'LACM383': '10.143.50.23',
-            'ACM372': '10.143.50.69', 'ACM367': '10.143.50.61', 'ACM374': '10.143.50.73',
+            'ACM372': '10.143.50.69', 'ACM374': '10.143.50.73', 'ACM357': '10.143.50.66',
             'ACM375': '10.143.50.75', 'LACM390': '10.143.50.27', 'LACM391': '10.143.50.31',
             'LACM385': '10.143.50.13', 'LACM381': '10.143.50.15', 'LACM382': '10.143.50.17',
             'LACM386': '10.143.50.19', 'ACM376': '10.143.50.77', 'LACM388': '10.143.50.87',
             'CG002': '10.143.50.123', 'CG001': '10.143.50.121', 'LACM393': '10.143.50.215',
-            'SLACM389': '10.143.50.128', 'ACM357': '10.143.50.66'
+            'SLACM389': '10.143.50.128', 'ACM367': '10.172.6.165'
             }
 
 # Define some functions
@@ -146,7 +146,7 @@ def update_machines(filename, path, mach_dict):
         except Exception as e:
             msg = 'Machine Update Failed: ' + mach + ': ' + str(e) + " [" + update_machines.__name__ + "]"
             logger.error(msg)
-            common_funcs.send_text(msg)
+            # common_funcs.send_text(msg)
             print(msg)
         else:
             msg = "FTP Transfer Time for " + mach + " was " + str(round((timer() - start), 3)) + " sec"
@@ -209,7 +209,7 @@ def check_maint_files(mpath, qpath):
     except Exception as e:
         msg = 'Maint File Sweep Failed: ' + ': ' + str(e) + " [" + check_maint_files.__name__ + "]"
         logger.error(msg)
-        common_funcs.send_text(msg)
+        # common_funcs.send_text(msg)
         print(msg)
     return
 
@@ -290,7 +290,7 @@ def get_filemaker_items():
         msg = 'FileMaker Query Failed: ' + str(e) + " [" + get_filemaker_items.__name__ + "]"
         logger.error(msg)
         print(msg)
-        common_funcs.send_text(msg)
+        # common_funcs.send_text(msg)
         sys.exit(1)
     else:
         msg = str(len(result)) + " FM Records Processed in " + str(round((timer() - start), 3)) + " sec."
@@ -317,7 +317,7 @@ def update_db(dbase):
     except Exception as e:
         msg = 'MSSQL Table Deletion Failed: ' + str(e) + " [" + update_db.__name__ + "]"
         logger.error(msg)
-        common_funcs.send_text(msg)
+        # common_funcs.send_text(msg)
         sys.exit(1)
     else:
         print("Delete Time = " + str(round((timer() - start), 3)) + " sec")
@@ -333,7 +333,7 @@ def update_db(dbase):
         msg = 'MSSQL Table Update Failed: ' + str(e) + " [" + update_db.__name__ + "]"
         logger.error(msg)
         print(msg)
-        common_funcs.send_text(msg)
+        # common_funcs.send_text(msg)
     else:
         print(str(len(dbase)) + " MSSQL Records Processed in " + str(round((timer() - start), 3)) + " sec")
     dbcnxn.close()
@@ -352,7 +352,7 @@ def update_scrdb(dbase):
     except Exception as e:
         msg = 'MSSQL Table Deletion Failed: ' + str(e) + " [" + update_scrdb.__name__ + "]"
         logger.error(msg)
-        common_funcs.send_text(msg)
+        # common_funcs.send_text(msg)
         sys.exit(1)
     else:
         print("Delete Time = " + str(round((timer() - start), 3)) + " sec")
@@ -367,7 +367,7 @@ def update_scrdb(dbase):
         msg = 'MSSQL Table Update Failed: ' + str(e) + " [" + update_scrdb.__name__ + "]"
         logger.error(msg)
         print(msg)
-        common_funcs.send_text(msg)
+        # common_funcs.send_text(msg)
     else:
         print(str(len(dbase)) + " MSSQL Records Processed in " + str(round((timer() - start), 3)) + " sec")
     dbcnxn.close()
@@ -394,7 +394,7 @@ def cleandata(row):
             msg = 'Record Stripping Failed: ' + str(e) + " [" + cleandata.__name__ + "]"
             logger.error(msg)
             print(msg)
-            common_funcs.send_text(msg)
+            # common_funcs.send_text(msg)
     return common_funcs.scrub_data(row)
 
 
@@ -434,7 +434,7 @@ def main():
         outputfile.close()
         # Send to machines
         mach_dict = check_mach_conn()
-        # update_machines('parts.csv', partdatapath, mach_dict)
+        update_machines('parts.csv', partdatapath, mach_dict)
     else:
         print('Files Identical, No Need to Replace')
     # Check Maintenance Directory for New Files
