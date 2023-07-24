@@ -34,7 +34,8 @@ def get_inv():
                        PROD.FPSPRMAST1.SPH_CURSTD,
                        STRIP(PROD.FPSPRMAST2.SPD_REODTE),
                        STRIP(PROD.FPSPRMAST2.SPD_USECC),
-                       STRIP(PROD.FPSPRMAST2.SPD_PURCC)
+                       STRIP(PROD.FPSPRMAST2.SPD_PURCC),
+                       STRIP(PROD.FPSPRMAST2.SPD_QREORD)
                 FROM PROD.FPSPRMAST1 INNER JOIN PROD.FPSPRMAST2 ON PROD.FPSPRMAST1.SPH_PART = PROD.FPSPRMAST2.SPD_PART
                 WHERE (((PROD.FPSPRMAST2.SPD_FACIL)=9))"""
     try:
@@ -67,6 +68,7 @@ def get_usage():
                            STRIP(PROD.{table!s}.SPU_PART),
                            STRIP(PROD.{table!s}.SPU_ENGPRT),
                            STRIP(PROD.{table!s}.SPU_USECC),
+                           STRIP(PROD.{table!s}.SPU_PURCC),
                            STRIP(PROD.{table!s}.SPU_CLOCK),
                            STRIP(PROD.{table!s}.SPU_RIDPO),
                            PROD.{table!s}.SPU_TRNQTY,

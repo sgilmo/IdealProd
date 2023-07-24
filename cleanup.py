@@ -17,8 +17,7 @@ logger.setLevel(logging.INFO)
 
 # define file handler and set formatter
 file_handler = logging.FileHandler('c:\\logs\\cleanup.log')
-formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s'
-                              , datefmt='%m/%d/%Y %I:%M:%S %p')
+formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 file_handler.setFormatter(formatter)
 
 # add file handler to logger

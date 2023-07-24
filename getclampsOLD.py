@@ -125,7 +125,7 @@ def update_machines(filename, path):
             badmachlist.append(mach)
             msg = 'Machine Update Failed: ' + mach + ': ' + str(e) + " [" + update_machines.__name__ + "]"
             logger.error(msg)
-            CommonFunc.send_text('sgilmo', ['sgilmo'], msg)
+            # CommonFunc.send_text('sgilmo', ['sgilmo'], msg)
             print(msg)
         else:
             msg = "FTP Transfer Time for " + mach + " was " + str(round((timer() - start), 3)) + " sec"
@@ -193,7 +193,7 @@ def check_maint_files(mpath, qpath):
     except Exception as e:
         msg = 'Maint File Sweep Failed: ' + ': ' + str(e) + " [" + check_maint_files.__name__ + "]"
         logger.error(msg)
-        CommonFunc.send_text('sgilmo', ['sgilmo'], msg)
+        # CommonFunc.send_text('sgilmo', ['sgilmo'], msg)
         print(msg)
     return
 

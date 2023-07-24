@@ -141,6 +141,7 @@ def load_db(folder_name, table_name, dtype_dict):
     else:
         print('Processing Folder ' + folder_name)
     for filename in filelist:
+        # Get rid of Auto Packer and Micro files
         if ((filename[:1] == '2') or (filename[:1] == '9')) and len(filename) > 10:
             shutil.move(fpath + filename, fpath_obs + filename)
             print('File ' + filename + ' Moved to ' + fpath_obs)
@@ -444,7 +445,7 @@ def check_file_size(srcpath, ftype):
 
 def checkins(dtypes):
     """report any machines that did not check in"""
-    machs = ('ACM350', 'ACM351', 'ACM353', 'ACM354', 'ACM355', 'ACM357', 'ACM361', 'ACM362',
+    machs = ('ACM350', 'ACM351', 'ACM353', 'ACM354', 'ACM355', 'ACM361', 'ACM362',
              'ACM363', 'ACM365', 'ACM366', 'ACM367', 'ACM369', 'ACM372', 'ACM374', 'ACM375',
              'ACM376', 'LACM381', 'LACM382', 'LACM383', 'LACM384', 'LACM385', 'LACM386',
              'LACM387', 'LACM388', 'LACM390', 'LACM391', 'LACM393', 'SLACM389', 'SLACM392')
@@ -593,42 +594,6 @@ def load_fastlok_production(fpath, size):
     return
 
 
-def uptime_rpt_old(dtypes, missing_mach):
-    fpath = "\\Inetpub\\ftproot\\acmrtdata\\"
-    mailto = ["elab@idealtridon.com", "bbrackman@idealtridon.com",
-              "jfinch@idealtridon.com", "thobbs@idealtridon.com"]
-    # mailto = ["sgilmour@idealtridon.com", "elab@idealtridon.com"]
-    filelist = os.listdir(fpath)
-    if len(filelist) == 0:
-        return
-    if len(filelist) > 1:
-        file_start = 1
-        df1 = pd.read_csv(fpath + filelist[0], names=dtypes.keys())
-        df1 = df1.astype(dtypes)
-    else:
-        file_start = 0
-        df1 = pd.DataFrame(columns=dtypes.keys())
-        df1 = df1.astype(dtypes)
-    for filename in filelist[file_start:]:
-        df = pd.read_csv(fpath + filename, names=dtypes.keys())
-        df = df.astype(dtypes)
-        df1 = pd.concat([df1, df])
-    idx = df1.columns.str.startswith('hr')
-    df1['Uptime'] = (df1.iloc[:, idx].sum(axis=1) / 86400) * 100.00
-    pd.options.display.float_format = '{:.2f}'.format
-    df1.reset_index(drop=True, inplace=True)
-    df_data = df1[['Machine', 'Uptime']]
-    data = build_table(df_data, 'blue_light')
-    yesterday = date.today() - timedelta(days=1)
-    logger.info('Sending Email in uptime report')
-    if len(missing_mach) == 1:
-        data = data + '<br><br><i>Machine That Did Not Check In: ' + ' '.join(missing_mach) + '</i>'
-    if len(missing_mach) > 1:
-        data = data + '<br><br><i>Machines That Did Not Check In: ' + ', '.join(missing_mach) + '</i>'
-    common_funcs.build_email(data, 'Uptime Report', 'ACM Uptime Report for ' + str(yesterday), mailto)
-    return
-
-
 def get_uptime():
     today = date.today()
     yesterday = today - timedelta(days=1)
@@ -645,27 +610,33 @@ def get_uptime():
                 AS Uptime
                 FROM [production].[AcmRuntime]            
                 WHERE
-                    AcmRuntime.RecDate = '%s'
+                    AcmRuntime.RecDate >= '%s'
                 ;""" % yesterday
     df = pd.read_sql(strsql, engine)
-    return df
+    return df.sort_values('Machine')
 
 
-def uptime_rpt(missing_mach):
+def uptime_rpt():
     mach_data = get_uptime()
-    mailto = ["elab@idealtridon.com", "bbrackman@idealtridon.com",
-              "jfinch@idealtridon.com", "thobbs@idealtridon.com"]
-    mailto = ["sgilmour@idealtridon.com", "elab@idealtridon.com"]
-    print(mach_data)
-    data = build_table(mach_data, 'blue_light')
+    mailto = ["elab@idealtridon.com", "bbrackman@idealtridon.com","jfinch@idealtridon.com", "thobbs@idealtridon.com"]
+    # For Debug
+    # mailto = ["sgilmour@idealtridon.com"]
+
+    # List of Active Machines that are supposed to submit production data
+    machs = ('ACM350', 'ACM351', 'ACM353', 'ACM354', 'ACM355', 'ACM357', 'ACM361', 'ACM362',
+             'ACM363', 'ACM365', 'ACM366', 'ACM369', 'ACM372', 'ACM374', 'ACM375',
+             'ACM376', 'LACM381', 'LACM382', 'LACM383', 'LACM384', 'LACM385', 'LACM386',
+             'LACM387', 'LACM388', 'LACM390', 'LACM391', 'LACM393', 'SLACM389', 'SLACM392')
+
+    missing_mach = set(machs).difference(mach_data['Machine'])
+    data = build_table(mach_data[['Machine','Uptime']], 'blue_light')
     yesterday = date.today() - timedelta(days=1)
     logger.info('Sending Email in uptime report')
     if len(missing_mach) == 1:
         data = data + '<br><br><i>Machine That Did Not Check In: ' + ' '.join(missing_mach) + '</i>'
     if len(missing_mach) > 1:
         data = data + '<br><br><i>Machines That Did Not Check In: ' + ', '.join(missing_mach) + '</i>'
-    common_funcs.build_email(data, 'Uptime Report', 'ACM Uptime Report for ' + str(yesterday), mailto)
-    return
+    common_funcs.build_email2(data, 'Uptime Report', 'ACM Uptime Report for ' + str(yesterday), mailto)
 
 
 def main():
@@ -676,7 +647,7 @@ def main():
     thickpath = "\\Inetpub\\ftproot\\acmtests\\Thickness\\"
     strut1path = "\\Inetpub\\ftproot\\Wesanco\\Weld1\\"
     strut2path = "\\Inetpub\\ftproot\\Wesanco\\Weld2\\"
-    strut3path = "\\Inetpub\\ftproot\\Wesanco\\Weld3\\"
+    # strut3path = "\\Inetpub\\ftproot\\Wesanco\\Weld3\\"
     strut5path = "\\Inetpub\\ftproot\\Wesanco\\Weld4\\"
     strut4path = "\\Inetpub\\ftproot\\FlaStrut\\Weld1\\"
     fastlok1path = "\\Inetpub\\ftproot\\FastLok\\FL2874\\"
@@ -690,18 +661,6 @@ def main():
     log_test_data(thickpath, "TG")
     log_test_data(shipdiapath, "CG")
 
-    # Generate Checkin Report Email
-    logger.info('Running Checkins')
-    dtypes = {"ID": 'int64', "Machine": 'object', "RecDate": 'datetime64', "hr0": 'int', "hr1": 'int',
-              "hr2": 'int', "hr3": 'int', "hr4": 'int', "hr5": 'int', "hr6": 'int', "hr7": 'int', "hr8": 'int',
-              "hr9": 'int', "hr10": 'int', "hr11": 'int', "hr12": 'int', "hr13": 'int', "hr14": 'int', "hr15": 'int',
-              "hr16": 'int', "hr17": 'int', "hr18": 'int', "hr19": 'int', "hr20": 'int', "hr21": 'int', "hr22": 'int',
-              "hr23": 'int'}
-    missing_machines = checkins(dtypes)
-    # Generate Uptime Report Email
-    logger.info('Running Uptime Report')
-    uptime_rpt(missing_machines)
-    # uptime_rpt_new(missing_machines)
     # Collect Machine Production data
     logger.info('Running MachProd')
     dtypes = {"ID": 'int64', "Part": 'object', "Operator": 'object', "Machine": 'category', "Start": 'datetime64[ns]',
@@ -749,11 +708,12 @@ def main():
     load_strut_production(strut4path, 20)
 
     # Collect Hourly Runtime Data for Struts
-    dtypes = {"Datestamp": 'int', "Machine": 'object', "RecDate": 'datetime64[ns]', "hr0": 'int', "hr1": 'int',
-              "hr2": 'int', "hr3": 'int', "hr4": 'int', "hr5": 'int', "hr6": 'int', "hr7": 'int', "hr8": 'int',
-              "hr9": 'int', "hr10": 'int', "hr11": 'int', "hr12": 'int', "hr13": 'int', "hr14": 'int', "hr15": 'int',
-              "hr16": 'int', "hr17": 'int', "hr18": 'int', "hr19": 'int', "hr20": 'int', "hr21": 'int', "hr22": 'int',
-              "hr23": 'int'}
+    # Pandas Model
+    dtypes = {"Datestamp": 'int', "Machine": 'object', "RecDate": 'datetime64[ns]', "hr0": 'int',
+              "hr1": 'float', "hr2": 'float', "hr3": 'float', "hr4": 'float', "hr5": 'float', "hr6": 'float',
+              "hr7": 'float', "hr8": 'float', "hr9": 'float', "hr10": 'float', "hr11": 'float', "hr12": 'float',
+              "hr13": 'float', "hr14": 'float', "hr15": 'float', "hr16": 'float', "hr17": 'float', "hr18": 'float',
+              "hr19": 'float', "hr20": 'float', "hr21": 'float', "hr22": 'float', "hr23": 'float'}
     logger.info('Running Runtime for Wesanco Strut Welder 1')
     load_db('Wesanco\\Weld1', 'tblStrut_Exp', dtypes)
     logger.info('Running Runtime for Wesanco Strut Welder 2')
@@ -764,6 +724,9 @@ def main():
     load_db('Wesanco\\Weld4', 'tblStrut_Exp', dtypes)
     logger.info('Running Runtime for Florida Strut Welder 1')
     load_db('FlaStrut\\Weld1', 'tblStrut_Exp', dtypes)
+    # Generate Uptime Report Email
+    logger.info('Running Uptime Report')
+    uptime_rpt()
 
     # TODO: Remove when converted to Pandas data model
     logger.info('Running FastLok 1')

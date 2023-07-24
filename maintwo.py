@@ -26,7 +26,7 @@ def send_files(filename, ip):
         return 1
     except Exception as e:
         msg = 'Maint HMI Update Failed: ' + filename + ': ' + str(e)
-        common_funcs.send_text(msg)
+        # common_funcs.send_text(msg)
         print(msg)
         return 0
 

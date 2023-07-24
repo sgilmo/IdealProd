@@ -5,7 +5,7 @@
 import os
 import csv
 import ftplib
-import CommonFunc
+import common_funcs
 from datetime import datetime
 from datetime import date
 from openpyxl import load_workbook
@@ -102,7 +102,8 @@ def loaddata(file_name, day):
         day.dow = date_sheet.strftime("%w")
     except Exception as e:
         msg = 'Production Board Update Failed: ' + file_name + ': ' + str(e)
-        CommonFunc.send_text('sgilmo', ['sgilmo'], msg)
+        print(msg)
+        # common_funcs.send_text(msg)
     for row_num in range(4, 35):
         day.add_dept(worksheet.cell(row=row_num, column=1).value)
         day.add_target(worksheet.cell(row=row_num, column=3).value)
@@ -129,7 +130,8 @@ def update_boards(filepath, ipaddr, area):
         ftp_connect.quit()
     except Exception as e:
         msg = area + " Connection Failed: " + str(e)
-        CommonFunc.send_text('sgilmo', ['sgilmo'], msg)
+        print(msg)
+        # common_funcs.send_text(msg)
     return
 
 
@@ -232,8 +234,10 @@ def send_to_boards(path):
 def main():
     """Main Function."""
 
-    prodfilepath = '\\\\tn-san-fileserv\\Operator Output\\Daily Production Sheet\\' + str(datetime.now().year) + '\\'
-    outputpath = 'c:\\temp\\'
+    prodfilepath = '\\\\tn-san-fileserv\\Dept\\Manufacturing\\Operator Output\\Daily Production Sheet\\' \
+                   + str(datetime.now().year) + '\\'
+    # '\\\\tn - san - fileserv\\Dept\\Manufacturing\\Operator Output\\Daily Production Sheet'
+    outputpath = 'c:\\prodboards\\'
 
     # Build File List of Appropriate Days
     buildfilelist(getlisting(prodfilepath))

@@ -101,7 +101,7 @@ def update_compdb(dbase, tbl_name, comp_name):
     except pyodbc.Error as e:
         msg = 'MSSQL Table Deletion Failed: ' + str(e) + " [" + sys._getframe(0).f_code.co_name + "]"
         logger.error(msg)
-        common_funcs.send_text(msg)
+        # common_funcs.send_text(msg)
         sys.exit(1)
     else:
         print("Delete Time = " + str(round((timer() - start), 3)) + " sec")
@@ -116,7 +116,7 @@ def update_compdb(dbase, tbl_name, comp_name):
         msg = 'MSSQL Table Update Failed: ' + str(e) + " [" + sys._getframe(0).f_code.co_name + "]"
         logger.error(msg)
         print(msg)
-        common_funcs.send_text(msg)
+        # common_funcs.send_text(msg)
         sys.exit(1)
     else:
         print(str(len(dbase)) + f" {comp_name} Part Numbers Added in " + str(round((timer() - start), 3)) + " sec")
@@ -137,7 +137,7 @@ def build_data_tbl():
         msg = 'Tbolt Table Build Failed: ' + str(e) + " [" + sys._getframe(0).f_code.co_name + "]"
         logger.error(msg)
         print(msg)
-        common_funcs.send_text(msg)
+        # common_funcs.send_text(msg)
         sys.exit(1)
     dbcnxn.close()
     return
@@ -160,7 +160,7 @@ def update_db(dbase):
         msg = 'MSSQL Table Update Failed: ' + str(e) + " [" + sys._getframe(0).f_code.co_name + "]"
         logger.error(msg)
         print(msg)
-        common_funcs.send_text(msg)
+        # common_funcs.send_text(msg)
         sys.exit(1)
     else:
         print(str(len(dbase)) + " Part Numbers Added in " + str(round((timer() - start), 3)) + " sec")
@@ -217,7 +217,7 @@ def get_partlist():
         msg = 'Tbolt Part List Query Failed: ' + str(e) + " [" + sys._getframe(0).f_code.co_name + "]"
         logger.error(msg)
         print(msg)
-        common_funcs.send_text(msg)
+        # common_funcs.send_text(msg)
         sys.exit(1)
     else:
         msg = str(len(result)) + " Unique Tbolt Part Numbers Retrieved in " + str(round((timer() - start), 3)) + " sec."
@@ -254,7 +254,7 @@ def get_tbolt():
             msg = 'Tbolt Query Failed: ' + str(e) + " [" + sys._getframe(0).f_code.co_name + "]"
             logger.error(msg)
             print(msg)
-            common_funcs.send_text(msg)
+            # common_funcs.send_text(msg)
             sys.exit(1)
         else:
             msg = str(len(result)) + " " + item + "s Retrieved in " + str(round((timer() - start), 3)) + " sec."
@@ -289,7 +289,7 @@ def get_types():
         msg = 'Component Type Query Failed: ' + str(e) + " [" + sys._getframe(0).f_code.co_name + "]"
         logger.error(msg)
         print(msg)
-        common_funcs.send_text(msg)
+        # common_funcs.send_text(msg)
         sys.exit(1)
     else:
         msg = str(len(result)) + " Types Retrieved in " + str(round((timer() - start), 3)) + " sec."

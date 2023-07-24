@@ -30,8 +30,8 @@ def update_dbusage(dbase):
 
     # Load spare part usage data onto SQL server
     print("Loading data to SQL server")
-    strsql = """INSERT INTO dbo.tblUsage (Date,Part,EngPart,Dept,Clock,Machine,Qty,Cost,SubTotal) 
-                VALUES (?,?,?,?,?,?,?,?,?)"""
+    strsql = """INSERT INTO dbo.tblUsage (Date,Part,EngPart,Dept,Acct,Clock,Machine,Qty,Cost,SubTotal) 
+                VALUES (?,?,?,?,?,?,?,?,?,?)"""
     try:
         cursor.executemany(strsql, dbase)
         dbcnxn.commit()
@@ -80,8 +80,8 @@ def update_dbinv(dbase):
     # Load spare part Inventory data onto SQL server
     print("Loading data to SQL server")
     strsql = """INSERT INTO dbo.tblInventory (PartNum,EngPartNum,Desc1,Desc2,Mfg,
-                MfgPn,Cabinet,Drawer,OnHand,StandardCost,ReOrderDate,DeptUse,DeptPurch) 
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"""
+                MfgPn,Cabinet,Drawer,OnHand,StandardCost,ReOrderDate,DeptUse,DeptPurch,ReOrderPt) 
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"""
     try:
         cursor.executemany(strsql, dbase)
         dbcnxn.commit()
@@ -251,7 +251,7 @@ def find_new_obs():
 
 
 def insert_new_obs(new_obs):
-    """Insert New Obsoleted Parts into tblObsNew"""
+    """Insert New Obsoleted Parts into tblObsOrig"""
     dbcnxn = pyodbc.connect(CONNSQL)
     cursor = dbcnxn.cursor()
     for item in new_obs:
@@ -278,3 +278,44 @@ def save_new_obs(new_obs):
         dbcnxn.commit()
     return
 
+
+def check_reorder_pts():
+    """Find any changed reorder points"""
+    dbcnxn = pyodbc.connect(CONNSQL)
+    cursor = dbcnxn.cursor()
+    changed = []
+
+    strsql = """SELECT EngPartNum, Desc1, ReOrderPt FROM [dbo].[tblInventory]
+                EXCEPT
+                SELECT EngPartNum, Desc1, ReOrderPt FROM [dbo].[tblInvRef]
+                ;"""
+    cursor.execute(strsql)
+    for row in cursor:
+        changed.append(row)
+    return changed
+
+
+def log_changed_reorderpts(changed):
+    """Insert Parts Changed Reorder Points into tblRePtChg"""
+    dbcnxn = pyodbc.connect(CONNSQL)
+    cursor = dbcnxn.cursor()
+    for item in changed:
+        item_string = ', '.join('?' * len(item))
+        strsql = """INSERT INTO [dbo].[tblRePtChg]  (EngPartNum, Desc1, ReOrderPt)
+                    VALUES (%s);
+                    """ % item_string
+        cursor.execute(strsql, item)
+        dbcnxn.commit()
+    return
+
+
+def reset_ref_table():
+    """Clear Out tblInvRef and Copy fresh values from tblInventory"""
+    dbcnxn = pyodbc.connect(CONNSQL)
+    cursor = dbcnxn.cursor()
+    strsql = """DROP TABLE tblInvRef"""
+    cursor.execute(strsql)
+    dbcnxn.commit()
+    strsql = """SELECT * INTO tblInvRef FROM tblInventory"""
+    cursor.execute(strsql)
+    dbcnxn.commit()
