@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+# coding=utf-8
+# !/usr/bin/env python
 
 """Common Database Functions Used on the iSeries AS400"""
 
@@ -98,8 +99,9 @@ def get_emps():
     """Get Employees From iSeries AS400"""
     dbcnxn = pyodbc.connect(CONNAS400)
     cursor = dbcnxn.cursor()
-    englogin = [9999, 'ELMER J FUDD', 'ENG']
-    eng = ['9107', '1656', '1472', '1626', '1351']
+    eng_login = ['9999', 'ELMER J FUDD', 'ENG']
+    lead_login = ['1208', 'Wile E Coyote', 'ENG']
+    eng = ['1208', '9107', '1656', '1472', '1626', '1351']
 
     strsql = """SELECT STRIP(EMP_CLOCK_NUMBER) As Clock,
                     CONCAT(CONCAT(STRIP(EMP_FIRST_NAME), ' '),
@@ -118,7 +120,8 @@ def get_emps():
     else:
         msg = str(len(result)) + " AS400 Employee Records Processed From Table"
         print(msg)
-    result.append(englogin)
+    result.append(eng_login)
+    result.append(lead_login)
     for row in result:
         if row[0] in eng:
             row[2] = 'ENG'
@@ -145,5 +148,4 @@ def right(s, amount):
 def mid(s, offset, amount):
     """Emulate Mid() String Function"""
     return s[offset:offset+amount]
-
 
