@@ -1,7 +1,7 @@
 # coding=utf-8
 # !/usr/bin/env python
 
-"""This program deletes ACM camera files older than 20 days on the engineering server"""
+"""This program deletes ACM camera files older than 10 days on the engineering server"""
 
 import os
 import time
@@ -85,8 +85,8 @@ def main():
     """Main Function"""
     number_of_days = 10
     root = ('\\\\tn-san-fileserv\\TOOLING\\2794 ACM Screw Head Vision\\Camera\\Screw Images\\Bad\\',
-            '\\\\tn-san-fileserv\\TOOLING\\2874 FASTLOK AUTOMATION\\Vision\\Lok Images\\Bad\\',
-            '\\\\tn-san-fileserv\\TOOLING\\2874 FASTLOK AUTOMATION\\Vision\\Lok Images\\Good\\')
+            '\\\\tn-san-fileserv\\TOOLING\\2874 PREFORM CLAMP AUTOMATION\\Vision\\Lok Images\\Bad\\',
+            '\\\\tn-san-fileserv\\TOOLING\\2874 PREFORM CLAMP AUTOMATION\\Vision\\Lok Images\\Good\\')
     start = timer()
     logger.info("Program Started")
     for item in root:
