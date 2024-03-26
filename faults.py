@@ -98,7 +98,7 @@ def get_faults():
                     if len(row) == 6:
                         sql = """
                             INSERT INTO 
-                                 production.machflts (machine, date, shift, operator, fault, duration)
+                                 production.machflts (machine, timestamp, shift, operator, fault, duration)
                             VALUES (?, ?, ?, ?, ?, ?);
                         """
                         rowdata = (
@@ -113,7 +113,7 @@ def get_faults():
                     if len(row) == 7:
                         sql = """
                             INSERT INTO 
-                                 production.machflts (machine, date, shift, operator, fault, duration, part)
+                                 production.machflts (machine, timestamp, shift, operator, fault, duration, part)
                             VALUES (?, ?, ?, ?, ?, ?, ?);
                         """
                         rowdata = (

@@ -9,7 +9,6 @@
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
     <data-source source="LOCAL" name="FileMaker" uuid="7458be31-a2d4-4bb0-8be2-29e51188bb86">
-      <driver-ref>java.sql.Driver</driver-ref>
       <synchronize>true</synchronize>
       <configured-by-url>true</configured-by-url>
       <jdbc-driver>com.filemaker.jdbc.Driver</jdbc-driver>

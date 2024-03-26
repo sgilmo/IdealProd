@@ -6,6 +6,8 @@ and put it in the ftproot on TN-DATACOLLECT
 """
 import pyodbc
 import csv
+import as400
+import sqlserver
 
 CONNECTION = """
 Driver={iSeries Access ODBC Driver};
@@ -18,7 +20,7 @@ PWD=SMY;
 emppath = "\\Inetpub\\ftproot\\"
 englogin = ['9999', 'Elmer J Fudd', 'ENG']
 nologin = ['0000', 'Please Log In', 'DEF']
-eng = ['9999', '9107', '1656', '1472', '1626', '1351', '1579']
+eng = ['9999', '1208', '9107', '1656', '1472', '1626', '1351', '1579']
 
 cnxn = pyodbc.connect(CONNECTION)
 cursor = cnxn.cursor()
@@ -28,7 +30,7 @@ sql = """SELECT STRIP(EMP_CLOCK_NUMBER) As Clock,
                 STRIP(EMP_LAST_NAME)) As Name,
                 STRIP(EMP_POSITION_CODE) As Code
         FROM PROD.FPCLCKPAY
-        WHERE (EMP_LOCATION = 09)
+        WHERE (EMP_LOCATION = 09) AND (EMP_LAST_NAME <> 'TEMP') AND (EMP_SHIFT_TYPE = 'A')
         ORDER BY EMP_CLOCK_NUMBER"""
 
 cursor.execute(sql)
@@ -41,3 +43,4 @@ outputfile = open(emppath + "emps.csv", "w", newline='')
 out = csv.writer(outputfile, delimiter=',', quoting=csv.QUOTE_NONE)
 out.writerows(file1)
 outputfile.close()
+sqlserver.update_emps(as400.get_emps())

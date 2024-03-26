@@ -112,7 +112,7 @@ def send_email(data, subject, msghdr):
 
     # Configure Email
     # old mailserver = "10.143.12.57"
-    mailserver = "mail.idealtridon.com"
+    mailserver = "cas2013.ideal.us.com"
     sender = "towerofdespair@idealelab.com"
     to = [user + "@idealtridon.com"]
     text = ''.join(str_msg)
