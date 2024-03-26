@@ -70,7 +70,8 @@ port = '1433'
 database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
 # Make Connection
 engine = create_engine(database_conn)
-conn = engine.raw_connection()
+# conn = engine.raw_connection()
+conn = engine.connect()
 # cursor = conn.cursor()
 
 
@@ -204,7 +205,7 @@ def load_db(folder_name, table_name, dtype_dict):
         message_header = 'Problem With <i>' + filename + '</i> :'
         print(prob_desc)
         print(prob_detail)
-        common_funcs.build_email(prob_detail, prob_desc, message_header, mailto)
+        common_funcs.build_email2(prob_detail, prob_desc, message_header, mailto)
     except Exception as e:
         prob_desc = 'Problem Sending Data to SQL Server Table (Other)'
         prob_detail = '<b>Problem Detail: </b><br>' + str(e)
@@ -618,7 +619,8 @@ def get_uptime():
 
 def uptime_rpt():
     mach_data = get_uptime()
-    mailto = ["elab@idealtridon.com", "bbrackman@idealtridon.com","jfinch@idealtridon.com", "thobbs@idealtridon.com"]
+    mailto = ["elab@idealtridon.com", "bbrackman@idealtridon.com",
+              "thobbs@idealtridon.com", "mpriddy@idealtridon.com"]
     # For Debug
     # mailto = ["sgilmour@idealtridon.com"]
 
@@ -629,7 +631,7 @@ def uptime_rpt():
              'LACM387', 'LACM388', 'LACM390', 'LACM391', 'LACM393', 'SLACM389', 'SLACM392')
 
     missing_mach = set(machs).difference(mach_data['Machine'])
-    data = build_table(mach_data[['Machine','Uptime']], 'blue_light')
+    data = build_table(mach_data[['Machine', 'Uptime']], 'blue_light')
     yesterday = date.today() - timedelta(days=1)
     logger.info('Sending Email in uptime report')
     if len(missing_mach) == 1:
@@ -682,7 +684,7 @@ def main():
 
     # Collect Operator Production Data
     logger.info('Running OppProd')
-    dtypes = {"ID": 'object', "part": 'object', "operator": 'object', "machine": 'object', "login": 'datetime64[ns]',
+    dtypes = {"ID": 'int64', "part": 'object', "operator": 'object', "machine": 'object', "login": 'datetime64[ns]',
               "logout": 'datetime64[ns]', "shift": 'int', "production": 'int', "eff": 'float', "neteff": 'float',
               "util": 'float'}
     load_db('opprod', 'opprod', dtypes)
@@ -725,8 +727,8 @@ def main():
     logger.info('Running Runtime for Florida Strut Welder 1')
     load_db('FlaStrut\\Weld1', 'tblStrut_Exp', dtypes)
     # Generate Uptime Report Email
-    logger.info('Running Uptime Report')
-    uptime_rpt()
+    # logger.info('Running Uptime Report')
+    # uptime_rpt()
 
     # TODO: Remove when converted to Pandas data model
     logger.info('Running FastLok 1')
