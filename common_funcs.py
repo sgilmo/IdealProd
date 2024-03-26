@@ -58,8 +58,8 @@ def send_sparereq_email(datalist, subject, message_header):
     sender = "elab@idealtridon.com"
     mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com", "kknight@idealtridon.com",
               "rjobman@idealtridon.com"]
-    #mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com"] # For general beta testing
-    #mailto = ["sgilmour@idealtridon.com"]  # For debug/testing
+    # mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com"] # For general beta testing
+    # mailto = ["sgilmour@idealtridon.com"]  # For debug/testing
     text = ''.join(str_msg)
     message = """\
 From: %s
