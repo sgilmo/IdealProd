@@ -68,8 +68,10 @@ MACHINES = {'ACM365': '10.143.50.57', 'LACM387': '10.143.50.25', 'ACM366': '10.1
             'LACM385': '10.143.50.13', 'LACM381': '10.143.50.15', 'LACM382': '10.143.50.17',
             'LACM386': '10.143.50.19', 'ACM376': '10.143.50.77', 'LACM388': '10.143.50.87',
             'CG002': '10.143.50.123', 'CG001': '10.143.50.121', 'LACM393': '10.143.50.215',
-            'SLACM389': '10.143.50.128', 'ACM367': '10.172.6.165'
+            'SLACM389': '10.143.50.128', 'ACM367': '10.172.6.165', 'LACM394': '10.143.50.172',
+            'ACM358': '10.143.50.195'
             }
+GEN3 = ['ACM357', 'ACM358', 'LACM394']
 
 # Define some functions
 
@@ -112,31 +114,36 @@ def check_mach_conn():
 def update_machines(filename, path, mach_dict):
     """Update machines via FTP return list of unsucessful transfers."""
     screwfile = 'screws.csv'
+    screwfile_job = 'screws.job'
     newpartflag = 'newparts.txt'
     for mach, ip in list(mach_dict.items()):
         print("Transferring " + mach)
         try:
             start = timer()
+            # Send Part File to Machines
             s = ftplib.FTP(ip, 'anonymous', 'anonymous')
             f = open(path + filename, "rb")
             print("Transferring " + filename + ' To ' + mach)
-            if mach == 'ACM357':
+            if mach in GEN3:
                 loc_dest = 'STOR /MEMCARD1/' + filename
                 s.storbinary(loc_dest, f)
             else:
                 s.storbinary('STOR ' + filename, f)
             f.close()
+            # Send Screw File to Machines
             f = open(path + screwfile, "rb")
             print("Transferring " + screwfile + ' To ' + mach)
-            if mach == 'ACM357':
-                loc_dest = 'STOR /MEMCARD1/' + screwfile
+            if mach in GEN3:
+                loc_dest = 'STOR /MEMCARD1/' + screwfile_job
                 s.storbinary(loc_dest, f)
             else:
                 s.storbinary('STOR ' + screwfile, f)
             f.close()
+
+            # Send Newpart File to Machines. This is a Marker File to Tell Machine to Process the Part Files
             f = open(path + newpartflag, "rb")
             print("Transferring " + newpartflag + ' To ' + mach)
-            if mach == 'ACM357':
+            if mach == mach in GEN3:
                 loc_dest = 'STOR /MEMCARD1/' + newpartflag
                 s.storbinary(loc_dest, f)
             else:
