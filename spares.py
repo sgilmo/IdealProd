@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""Get spare part data from AS400 and place in apprpriate SQL Server tables.
+"""Get spare part data from AS400 and place in appropriate SQL Server tables.
 Also, process engineering requested spare parts and track them through the system"""
 
 import as400
