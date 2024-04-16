@@ -1,10 +1,11 @@
 """Update Automation Direct Price Sheet.
 
-Compare existing file on server with Automation Directs
-If there is a difference replace the one on the server.
+Pull Current Pricelist from Automation Direct Website and
+Load it on to existing SQL Server Table
 """
 
 import pandas as pd
+import typing
 from sqlalchemy import create_engine
 from urllib import parse
 from timeit import default_timer as timer
@@ -40,6 +41,7 @@ def read_pricelist():
 
 def update_db(df):
     """ Add prices to SQL server database"""
+    print(df)
     df.to_sql('Adirect', conn, schema='production', if_exists='replace', index=False)
     return
 
