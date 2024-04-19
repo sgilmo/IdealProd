@@ -17,22 +17,6 @@ def check_for_int(data):
         return False
 
 
-def send_text(msg):
-    """Send SMS Message Using Twilio Account
-    """
-    account_sid = os.environ['TWILIO_ACCOUNT_SID']
-    auth_token = os.environ['TWILIO_AUTH_TOKEN']
-    client = Client(account_sid, auth_token)
-    message = client.messages \
-        .create(
-            body=msg,
-            from_='+19045670856',
-            to='+19045011059'
-        )
-    print(message.sid)
-    return
-
-
 def scrub_data(row):
     """Clean up nonconforming entries"""
     # Make sure appropriate elements are floats and format them

@@ -4,6 +4,7 @@
 """This program scans active equipment for network connectivity."""
 
 from subprocess import Popen, PIPE
+from timeit import default_timer as timer
 import common_funcs
 
 # create dictionary structure for machine IP addresses
@@ -63,6 +64,7 @@ machines = {'SMYRNA GATEWAY': '10.143.12.2', 'TNSTRUT GATEWAY': '10.149.12.1',
 
 
 # Scan list of IP addresses for bad connections.
+start = timer()
 badlist = []
 for hostName, hostIP in list(machines.items()):
     cmd = Popen("ping -n 1 " + hostIP, stdout=PIPE)
@@ -78,7 +80,7 @@ for hostName, hostIP in list(machines.items()):
             hostState = "Down"
             badlist.append(hostName + " At " + hostIP + " [" + hostState + "]")
             break
-
+print("Machine Connect Test Time = " + str(round((timer() - start), 3)) + " sec")
 # If there were bad connections let us know about it
 if len(badlist) > 0:
     strlist = ""
