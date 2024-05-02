@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="autodata@TN-SQL" uuid="03f6a4f6-0bb2-49c6-8022-c39dcdab3159">
+    <data-source source="LOCAL" name="SQL Server" uuid="03f6a4f6-0bb2-49c6-8022-c39dcdab3159">
       <driver-ref>sqlserver.ms</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>com.microsoft.sqlserver.jdbc.SQLServerDriver</jdbc-driver>
@@ -13,6 +13,12 @@
       <configured-by-url>true</configured-by-url>
       <jdbc-driver>com.filemaker.jdbc.Driver</jdbc-driver>
       <jdbc-url>jdbc:filemaker://tn-fm17/mfg8clamps</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
+    <data-source source="LOCAL" name="AS400" uuid="4366ee41-2837-4219-b4e9-5e1051b374ed">
+      <driver-ref>db2.11</driver-ref>
+      <jdbc-driver>com.ibm.db2.jcc.DB2Driver</jdbc-driver>
+      <jdbc-url>jdbc:db2://10.143.12.10:50000/PROD</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
   </component>

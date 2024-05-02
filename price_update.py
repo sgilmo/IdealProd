@@ -1,58 +1,48 @@
 """Update Automation Direct Price Sheet.
 
-Compare existing file on server with Automation Directs
-If there is a difference replace the one on the server.
+Pull Current Pricelist from Automation Direct Website and
+Load it on to existing SQL Server Table
 """
 
-import pyodbc
 import pandas as pd
+import typing
+from sqlalchemy import create_engine
+from urllib import parse
 from timeit import default_timer as timer
 
 # Define Database Connection
 
-CONNECTION = """
-Driver={SQL Server};
-Server=tn-sql;
-Database=autodata;
-UID=production;
-PWD=Auto@matics;
-"""
+# SQLAlchemy connection
+server = 'tn-sql'
+database = 'autodata'
+driver = 'ODBC+Driver+17+for+SQL+Server'
+user = 'production'
+pwd = parse.quote_plus("Auto@matics")
+port = '1433'
+database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
+# Make Connection
+engine = create_engine(database_conn)
+# conn = engine.raw_connection()
+conn = engine.connect()
 
 
 def read_pricelist():
     """Open price list workbook"""
-    dbase = []
-    print('Fetching Data File From Automation Direct Web Site')
+    name = 'ADC Price List with Categories '
     url = 'https://cdn.automationdirect.com/static/prices/prices_public.xlsx'
-    # url = 'c:\\PriceLists\\prices_public.xlsx'
-    df = pd.read_excel(url, sheet_name='ADC Price List with Categories ',
-                       usecols=[0, 2, 3])
-    validity = df.values[3, 0]
-    for item in df.values:
-        cost = item[2]
-        if type(cost) == float or type(cost) == int:
-            cost = float(cost)
-            if cost > 0.00:
-                dbase.append(list([item[0], item[2], item[1] + ' ' + validity]))
-    return dbase
+    print('Fetching Data File From Automation Direct Web Site')
+    df = pd.read_excel(url, sheet_name=name, usecols=[0, 2, 3])
+    df_dropped = df.dropna()
+    df_reset = df_dropped.reset_index(drop=True)
+    df_reset.columns = ['part', 'status', 'price']
+    df_final = df_reset[1:]
+    return df_final
 
 
-def update_db(dbase):
+def update_db(df):
     """ Add prices to SQL server database"""
-    dbcnxn = pyodbc.connect(CONNECTION)
-    cursor = dbcnxn.cursor()
-    cursor.fast_executemany = True
-    # Delete Existing Records
-    print("Deleting Existing Records on SQL Server")
-    cursor.execute("TRUNCATE TABLE production.Adirect")
-    dbcnxn.commit()
-
-    # Load price data onto SQL server
-    print("Loading data to SQL server")
-    strsql = "INSERT INTO production.Adirect (part,price,status) VALUES (?,?,?)"
-    cursor.executemany(strsql, dbase)
-    dbcnxn.commit()
-    print(str(len(dbase)) + " Records Processed")
+    print(df)
+    df.to_sql('Adirect', conn, schema='production', if_exists='replace', index=False)
     return
 
 
