@@ -4,6 +4,7 @@
 
 import pyodbc
 import classes
+import pandas as pd
 
 # Define Database Connection
 
@@ -249,6 +250,46 @@ def find_new_obs():
         new_obs.append(row)
     return new_obs
 
+
+def find_new_obs2(result_spares):
+    """Find any newly obsoleted spare parts"""
+    data_type_dict = {'StandardCost': float, 'OnHand': int, 'PartNum': str, 'ReOrderPt': int, 'ReOrderDate': int}
+    df_spares = pd.DataFrame.from_records(result_spares)
+    df_spares.columns = ['PartNum', 'EngPartNum', 'Desc1', 'Desc2', 'Mfg', 'MfgPn', 'Cabinet', 'Drawer', 'OnHand',
+                         'StandardCost', 'ReOrderDate', 'DeptUse', 'DeptPurch', 'ReOrderPt']
+    df_spares = df_spares.dropna()
+    df_spares = df_spares.astype(data_type_dict)
+    df_spares = df_spares.convert_dtypes()
+
+    df_obs = df_spares[df_spares.Cabinet.str.contains('OBS')]
+    df_obs_yest = pd.read_csv('c:\\temp\\yesterday_obs.csv', header=None, sep='\t')
+    df_obs_yest.reset_index(drop=True, inplace=True)
+    df_obs.reset_index(drop=True, inplace=True)
+    df_obs_yest = df_obs_yest.fillna("")
+
+    df_obs_yest.columns = df_spares.columns
+    df_obs_yest = df_obs_yest.astype(data_type_dict)
+    df_obs_yest = df_obs_yest.convert_dtypes()
+    item_list = []
+    if not df_obs['PartNum'].equals(df_obs_yest['PartNum']):
+        df_diff = pd.concat([df_obs, df_obs_yest]).drop_duplicates(keep=False)
+        df_obs.to_csv('c:\\temp\\yesterday_obs.csv', header=False, index=False, sep='\t')
+        i = 1
+        for index, row in df_diff.iterrows():
+            # print(row['PartNum'], row['EngPartNum'], row['Desc1'])
+            item_list.append('<h5>Item ' + str(i) + '</h5>'
+                             + '<p style="margin-left: 40px">'
+                             + 'Part Number: ' + row['PartNum']
+                             + '<br>Eng Part Number: <strong>' + row['EngPartNum'] + '</strong>'
+                             + '<br>Description 1: ' + row['Desc1']
+                             + '<br>Description 2: ' + row['Desc2']
+                             + '<br>Manufacturer: ' + row['Mfg']
+                             + '<br>Manufacturer Pn: <strong>' + row['MfgPn'] + '</strong>'
+                             + '<br>Dept Use: ' + row['DeptUse']
+                             + '<br>Dept Purch: ' + row['DeptPurch']
+                             + '</p><br>')
+            i += 1
+    return item_list
 
 def insert_new_obs(new_obs):
     """Insert New Obsoleted Parts into tblObsOrig"""

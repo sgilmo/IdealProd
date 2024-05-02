@@ -50,10 +50,15 @@ def get_inv():
     else:
         msg = str(len(result)) + " AS400 Inventory Records Processed From Inventory Tables"
         print(msg)
+    dbcnxn.close()
+    return result
+
+
+def build_inv_list(result):
+    dbase = []
     for row in result:
         row[10] = make_date(row[10])
         dbase.append(list([str(x) for x in row]))
-    dbcnxn.close()
     return dbase
 
 
