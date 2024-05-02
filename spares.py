@@ -10,6 +10,7 @@ import reqspare
 
 def main():
     """Main Function"""
+    as400_dbresult = as400.get_inv()
     sqlserver.update_dbusage(as400.get_usage())
     sqlserver.update_emps(as400.get_emps())
     sqlserver.cleanup_pending()
@@ -17,11 +18,11 @@ def main():
     sqlserver.update_req()  # Timestamp Request when emailed to purchasing
     sqlserver.move_entered_spares()  # Check if part entered on AS400
     sqlserver.move_comp_spares()  # Record stocked requested spare to its own table
-    obs = sqlserver.find_new_obs()
-    reqspare.build_email_obs(obs)  # Build and Send email to purchasing
-    sqlserver.insert_new_obs(obs)  # Insert newly obsoleted part into the reference table
-    sqlserver.save_new_obs(obs)  # Save a record of obsoleted part
-    sqlserver.update_dbinv(as400.get_inv())
+    obs = sqlserver.find_new_obs2()
+    reqspare.build_email_obs2(obs)  # Build and Send email to purchasing
+    # sqlserver.insert_new_obs(obs)  # Insert newly obsoleted part into the reference table
+    # sqlserver.save_new_obs(obs)  # Save a record of obsoleted part
+    sqlserver.update_dbinv(as400.build_inv_list(as400_dbresult))
     changed = sqlserver.check_reorder_pts()
     if len(changed) > 0:
         sqlserver.log_changed_reorderpts(changed)
