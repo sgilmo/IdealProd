@@ -291,6 +291,7 @@ def find_new_obs2(result_spares):
             i += 1
     return item_list
 
+
 def insert_new_obs(new_obs):
     """Insert New Obsoleted Parts into tblObsOrig"""
     dbcnxn = pyodbc.connect(CONNSQL)

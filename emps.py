@@ -40,7 +40,7 @@ for row in cursor:
         row[2] = 'ENG'
     file1.append(row)
 outputfile = open(emppath + "emps.csv", "w", newline='')
-out = csv.writer(outputfile, delimiter=',', quoting=csv.QUOTE_NONE)
+out = csv.writer(outputfile, delimiter=',', quoting=csv.QUOTE_NONE, escapechar='\\')
 out.writerows(file1)
 outputfile.close()
 sqlserver.update_emps(as400.get_emps())

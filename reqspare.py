@@ -80,8 +80,7 @@ def build_email_obs(obs_spare):
 
 def build_email_obs2(obs_spare):
     """ Build Email Struct and send to appropriate people"""
-    # mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com"]
-    mailto = ["sgilmour@idealtridon.com"]
+    mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com"]
     stritems = "Item(s) Have Been Made Obsolete</h3>"
     common_funcs.build_email(obs_spare, "Newly Obsoleted Spare Parts", "<br><h3>The Following "
                              + stritems, mailto)
