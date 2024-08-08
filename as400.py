@@ -21,7 +21,6 @@ def get_inv():
     """Get Spare Inventory Data From iSeries AS400"""
     dbcnxn = pyodbc.connect(CONNAS400)
     cursor = dbcnxn.cursor()
-    dbase = []
 
     strsql = """SELECT PROD.FPSPRMAST1.SPH_PART,
                        STRIP(PROD.FPSPRMAST1.SPH_ENGPRT),
@@ -81,7 +80,7 @@ def get_usage():
                            PROD.{table!s}.SPU_STDCST,
                            ROUND(PROD.{table!s}.SPU_TRNQTY * PROD.{table!s}.SPU_STDCST,2)
                     FROM PROD.{table!s}
-                    WHERE (PROD.{table!s}.SPU_FACIL = 09)
+                    WHERE (PROD.{table!s}.SPU_FACIL = 9)
                     AND STRIP(PROD.{table!s}.SPU_USECC) IS NOT NULL"""
         try:
             cursor.execute(strsql)
@@ -113,7 +112,7 @@ def get_emps():
                     STRIP(EMP_LAST_NAME)) As Name,
                     STRIP(EMP_POSITION_CODE) As Code
             FROM PROD.FPCLCKPAY
-            WHERE (EMP_LOCATION = 09) AND (EMP_LAST_NAME <> 'TEMP') AND (EMP_SHIFT_TYPE = 'A')
+            WHERE (EMP_LOCATION = '09') AND (EMP_LAST_NAME <> 'TEMP') AND (EMP_SHIFT_TYPE = 'A')
             ORDER BY EMP_CLOCK_NUMBER"""
     try:
         cursor.execute(strsql)
