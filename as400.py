@@ -101,36 +101,48 @@ def get_usage():
 
 def get_emps():
     """Get Employees From iSeries AS400"""
-    dbcnxn = pyodbc.connect(CONNAS400)
-    cursor = dbcnxn.cursor()
-    eng_login = ['9999', 'ELMER J FUDD', 'ENG']
-    lead_login = ['1208', 'Wile E Coyote', 'ENG']
-    eng = ['1208', '9107', '1656', '1472', '1626', '1351']
+    try:
+        dbcnxn = pyodbc.connect(CONNAS400)
+    except pyodbc.Error as ex:
+        sqlstate = ex.args[0]
+        if sqlstate == '08001':
+            print("Unable to connect to SQL Server")
+        else:
+            print("An error occured: ", ex)
+        return []
+    else:
+        cursor = dbcnxn.cursor()
+        eng_login = ['9999', 'ELMER J FUDD', 'ENG']
+        lead_login = ['1208', 'WILE E COYOTE', 'ENG']
+        eng = ['1208', '9107', '1656', '1472', '1626', '1351', '9999']
 
-    strsql = """SELECT STRIP(EMP_CLOCK_NUMBER) As Clock,
+        strsql = """SELECT STRIP(EMP_CLOCK_NUMBER) As Clock,
                     CONCAT(CONCAT(STRIP(EMP_FIRST_NAME), ' '),
                     STRIP(EMP_LAST_NAME)) As Name,
                     STRIP(EMP_POSITION_CODE) As Code
             FROM PROD.FPCLCKPAY
             WHERE (EMP_LOCATION = '09') AND (EMP_LAST_NAME <> 'TEMP') AND (EMP_SHIFT_TYPE = 'A')
             ORDER BY EMP_CLOCK_NUMBER"""
-    try:
-        cursor.execute(strsql)
-        result = cursor.fetchall()
-    except Exception as e:
-        msg = 'AS400 Employee Query Failed: ' + str(e)
-        result = []
-        print(msg)
-    else:
-        msg = str(len(result)) + " AS400 Employee Records Processed From Table"
-        print(msg)
-    result.append(eng_login)
-    result.append(lead_login)
-    for row in result:
-        if row[0] in eng:
-            row[2] = 'ENG'
-    dbcnxn.close()
-    return result
+        try:
+            cursor.execute(strsql)
+            result = list(cursor.fetchall())
+            result.append(eng_login)
+            result.append(lead_login)
+        except Exception as e:
+            msg = 'AS400 Employee Query Failed: ' + str(e)
+            result = []
+            print(msg)
+        else:
+            msg = str(len(result)) + " AS400 Employee Records Processed From Table"
+            print(msg)
+
+        for row in result:
+            if row[0] in eng:
+                row[2] = 'ENG'
+            else:
+                row[2] = 'DEF'
+        dbcnxn.close()
+        return result
 
 
 def make_date(val):
