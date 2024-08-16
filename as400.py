@@ -114,7 +114,7 @@ def get_emps():
         cursor = dbcnxn.cursor()
         eng_login = ['9999', 'ELMER J FUDD', 'ENG']
         lead_login = ['1208', 'WILE E COYOTE', 'ENG']
-        eng = ['1208', '9107', '1656', '1472', '1626', '1351', '9999']
+        eng = ['1208', '9107', '1656', '1472', '1626', '1351', '9999', '2126', '1496']
 
         strsql = """SELECT STRIP(EMP_CLOCK_NUMBER) As Clock,
                     CONCAT(CONCAT(STRIP(EMP_FIRST_NAME), ' '),
