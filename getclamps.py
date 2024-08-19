@@ -29,7 +29,7 @@ import logging
 
 # Setup Logging
 # Gets or creates a logger
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 # set log level
 logger.setLevel(logging.INFO)
@@ -116,50 +116,42 @@ def update_machines(filename, path, mach_dict):
     screwfile = 'screws.csv'
     screwfile_job = 'screws.job'
     newpartflag = 'newparts.txt'
-    for mach, ip in list(mach_dict.items()):
-        print("Transferring " + mach)
-        try:
-            start = timer()
-            # Send Part File to Machines
-            s = ftplib.FTP(ip, 'anonymous', 'anonymous')
-            f = open(path + filename, "rb")
-            print("Transferring " + filename + ' To ' + mach)
-            if mach in GEN3:
-                loc_dest = 'STOR /MEMCARD1/' + filename
-                s.storbinary(loc_dest, f)
-            else:
-                s.storbinary('STOR ' + filename, f)
-            f.close()
-            # Send Screw File to Machines
-            f = open(path + screwfile, "rb")
-            print("Transferring " + screwfile + ' To ' + mach)
-            if mach in GEN3:
-                loc_dest = 'STOR /MEMCARD1/' + screwfile_job
-                s.storbinary(loc_dest, f)
-            else:
-                s.storbinary('STOR ' + screwfile, f)
-            f.close()
+    unsuccessful_transfers = []
 
-            # Send Newpart File to Machines. This is a Marker File to Tell Machine to Process the Part Files
-            f = open(path + newpartflag, "rb")
-            print("Transferring " + newpartflag + ' To ' + mach)
-            if mach == mach in GEN3:
-                loc_dest = 'STOR /MEMCARD1/' + newpartflag
-                s.storbinary(loc_dest, f)
-            else:
-                s.storbinary('STOR ' + newpartflag, f)
-            f.close()
-            s.quit()
-        except Exception as e:
-            msg = 'Machine Update Failed: ' + mach + ': ' + str(e) + " [" + update_machines.__name__ + "]"
+    files_to_transfer = [
+        (filename, filename),
+        (screwfile, screwfile_job),
+        (newpartflag, newpartflag)
+    ]
+
+    for mach, ip in mach_dict.items():
+        print(f"Transferring {mach}")
+        start = timer()
+        try:
+            # Establish FTP connection
+            with ftplib.FTP(ip, 'anonymous', 'anonymous') as ftp:
+                for local_file, gen3_filename in files_to_transfer:
+                    try:
+                        with open(os.path.join(path, local_file), "rb") as f:
+                            print(f"Transferring {local_file} to {mach}")
+                            dest = f'STOR /MEMCARD1/{gen3_filename}' if mach in GEN3 else f'STOR {local_file}'
+                            ftp.storbinary(dest, f)
+                    except OSError as e:
+                        logger.error(f"Error opening file {local_file} for {mach}: {str(e)}")
+                        unsuccessful_transfers.append(mach)
+                        break
+        except ftplib.all_errors as e:
+            msg = f'Machine Update Failed: {mach}: {str(e)} [{update_machines.__name__}]'
             logger.error(msg)
-            # common_funcs.send_text(msg)
             print(msg)
+            unsuccessful_transfers.append(mach)
         else:
-            msg = "FTP Transfer Time for " + mach + " was " + str(round((timer() - start), 3)) + " sec"
+            transfer_time = round(timer() - start, 3)
+            msg = f'FTP Transfer Time for {mach} was {transfer_time} sec'
             logger.info(msg)
             print(msg)
-    return
+
+    return unsuccessful_transfers
 
 
 def save_history(filename, partpath, histpath):
@@ -441,7 +433,7 @@ def main():
         outputfile.close()
         # Send to machines
         mach_dict = check_mach_conn()
-        update_machines('parts.csv', partdatapath, mach_dict)
+        print(update_machines('parts.csv', partdatapath, mach_dict))
     else:
         print('Files Identical, No Need to Replace')
     # Check Maintenance Directory for New Files
