@@ -11,18 +11,19 @@ import socket
 import smtplib
 import getpass
 import pyodbc
+import os
 
 # Define Database Connection
 
 # Old Driver
 # Driver={SQL Server Native Client 11.0};
-CONNECTION = """
-Driver={SQL Server};
+CONNECTION = f"""
+Driver={{SQL Server}};
 Server=tn-sql;
 Database=autodata;
 autocommit=true;
-UID=production;
-PWD=Auto@matics;
+UID={os.getenv('SQL_UID')};
+PWD={os.getenv('SQL_PWD')};
 """
 
 
