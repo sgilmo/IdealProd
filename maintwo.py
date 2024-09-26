@@ -5,7 +5,6 @@
 import os
 import time
 import ftplib
-import common_funcs
 
 # Establish Some Globals
 
