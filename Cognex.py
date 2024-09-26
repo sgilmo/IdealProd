@@ -38,8 +38,8 @@ def set_camera_job(host, job_name):
     tn = telnet_connect(host, port)
     temp = tn.read_until(b"\n").decode('utf-8')
     telnet_user = user+'\r\n'
-    tn.write(telnet_user.encode('ascii')) #the user name is admin
-    tn.write("\r\n".encode('ascii')) #there is no password - just return - now logged in
+    tn.write(telnet_user.encode('ascii')) # the user name is admin
+    tn.write("\r\n".encode('ascii')) # there is no password - just return - now logged in
     print('Telnet Logged in')
     print("Setting Timeout")
     tn.write(b"PUT Timeout 60000\r\n")
