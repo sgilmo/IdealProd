@@ -5,7 +5,7 @@ import pandas as pd
 
 def build_email():
     """ Build Email Struct and send to appropriate people"""
-    mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com", "kknight@idealtridon.com",
+    mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com", "jmoore@idealtridon.com",
               "rjobman@idealtridon.com"]
     # mailto = ["sgilmour@idealtridon.com"]
     item_list = []
