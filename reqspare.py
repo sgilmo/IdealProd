@@ -5,9 +5,7 @@ import pandas as pd
 
 def build_email():
     """ Build Email Struct and send to appropriate people"""
-    mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com", "jmoore@idealtridon.com",
-              "rjobman@idealtridon.com"]
-    # mailto = ["sgilmour@idealtridon.com"]
+
     item_list = []
     i = 1
     reqspare = sqlserver.get_spare_req()
@@ -36,6 +34,9 @@ def build_email():
             stritems = " Items Available in the Tool Crib</h3>"
         if i <= 2:
             stritems = " Item Available in the Tool Crib</h3>"
+        mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com", "jmoore@idealtridon.com",
+                  "rjobman@idealtridon.com", item.req_by.lower() + "@idealtridon.com"]
+        # mailto = ["sgilmour@idealtridon.com"] # For Debug
         common_funcs.build_email(item_list, "Spare Part Request",
                                  "<br><h3>Please Make the Following " + str(i-1) + stritems, mailto)
     return
