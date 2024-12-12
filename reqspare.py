@@ -1,7 +1,6 @@
 """Functions Required for Engineering Spare Part Requisitions"""
 import sqlserver
 import common_funcs
-import pandas as pd
 
 def build_email():
     """ Build Email Struct and send to appropriate people"""
