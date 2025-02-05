@@ -5,6 +5,13 @@
 import pyodbc
 import classes
 import pandas as pd
+from sqlalchemy import create_engine
+import sqlalchemy.exc
+from urllib import parse
+import as400
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # Define Database Connection
 
@@ -16,6 +23,17 @@ Database=autodata;
 UID=production;
 PWD=Auto@matics;
 """
+
+server = 'tn-sql'
+database = 'autodata'
+driver = 'ODBC+Driver+17+for+SQL+Server&AUTOCOMMIT=TRUE'
+user = 'production'
+pwd = parse.quote_plus("Auto@matics")
+port = '1433'
+database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
+# Make Connection
+engine = create_engine(database_conn)
+conn = engine.connect()
 
 
 def update_dbusage(dbase):
@@ -235,90 +253,108 @@ def move_comp_spares():
     dbcnxn.commit()
     return
 
-
-def find_new_obs():
+def find_new_obs(result_spares):
     """Find any newly obsoleted spare parts"""
-    dbcnxn = pyodbc.connect(CONNSQL)
-    cursor = dbcnxn.cursor()
-    new_obs = []
-    strsql = """SELECT * FROM [dbo].[vwObsSpares]
-                EXCEPT
-                SELECT * FROM [dbo].[tblObsOrig]
-                ;"""
-    cursor.execute(strsql)
-    for row in cursor:
-        new_obs.append(row)
-    return new_obs
+    data_type_dict = {'StandardCost': float, 'OnHand': int, 'PartNum': str, 'ReOrderPt': int,
+                      'ReOrderDate': int, 'Cabinet': str, 'Drawer': str}
+    # Ensure the correct structure of incoming data
+    try:
+        df_spares = pd.DataFrame.from_records(result_spares)
+        expected_columns = ['PartNum', 'EngPartNum', 'Desc1', 'Desc2', 'Mfg', 'MfgPn',
+                            'Cabinet', 'Drawer', 'OnHand', 'StandardCost', 'ReOrderDate',
+                            'DeptUse', 'DeptPurch', 'ReOrderPt']
+        if len(df_spares.columns) != len(expected_columns):
+            raise ValueError("Mismatch in the number of columns in result_spares")
+        df_spares.columns = expected_columns
+    except Exception as e:
+        print(f"Error creating DataFrame: {e}")
+        return pd.DataFrame()  # Return an empty DataFrame in case of failure
 
+    # Drop NaN values from critical columns
+    df_spares = df_spares.dropna(subset=['PartNum', 'Cabinet', 'OnHand'])
 
-def find_new_obs2(result_spares):
-    """Find any newly obsoleted spare parts"""
-    data_type_dict = {'StandardCost': float, 'OnHand': int, 'PartNum': str, 'ReOrderPt': int, 'ReOrderDate': int}
-    df_spares = pd.DataFrame.from_records(result_spares)
-    df_spares.columns = ['PartNum', 'EngPartNum', 'Desc1', 'Desc2', 'Mfg', 'MfgPn', 'Cabinet', 'Drawer', 'OnHand',
-                         'StandardCost', 'ReOrderDate', 'DeptUse', 'DeptPurch', 'ReOrderPt']
-    df_spares = df_spares.dropna()
-    df_spares = df_spares.astype(data_type_dict)
-    df_spares = df_spares.convert_dtypes()
+    # Enforce data types safely
+    for col, dtype in data_type_dict.items():
+        if col in df_spares.columns:
+            if dtype == int or dtype == float:
+                df_spares[col] = pd.to_numeric(df_spares[col], errors='coerce')
+            else:
+                df_spares[col] = df_spares[col].astype(dtype)
 
-    df_obs = df_spares[df_spares.Cabinet.str.contains('OBS')]
-    df_obs_yest = pd.read_csv('c:\\temp\\yesterday_obs.csv', header=None, sep='\t')
-    df_obs_yest.reset_index(drop=True, inplace=True)
-    df_obs.reset_index(drop=True, inplace=True)
-    df_obs_yest = df_obs_yest.fillna("")
+    # Filter for obsolete parts
+    df_obs_all = df_spares[df_spares.Cabinet.str.contains('OBS', case=False, na=False)]
 
-    df_obs_yest.columns = df_spares.columns
-    df_obs_yest = df_obs_yest.astype(data_type_dict)
-    df_obs_yest = df_obs_yest.convert_dtypes()
-    item_list = []
-    if not df_obs['PartNum'].equals(df_obs_yest['PartNum']):
-        df_diff = pd.concat([df_obs, df_obs_yest]).drop_duplicates(keep=False)
-        df_obs.to_csv('c:\\temp\\yesterday_obs.csv', header=False, index=False, sep='\t')
-        i = 1
-        for index, row in df_diff.iterrows():
-            # print(row['PartNum'], row['EngPartNum'], row['Desc1'])
-            item_list.append('<h5>Item ' + str(i) + '</h5>'
-                             + '<p style="margin-left: 40px">'
-                             + 'Part Number: ' + row['PartNum']
-                             + '<br>Eng Part Number: <strong>' + row['EngPartNum'] + '</strong>'
-                             + '<br>Description 1: ' + row['Desc1']
-                             + '<br>Description 2: ' + row['Desc2']
-                             + '<br>Manufacturer: ' + row['Mfg']
-                             + '<br>Manufacturer Pn: <strong>' + row['MfgPn'] + '</strong>'
-                             + '<br>Dept Use: ' + row['DeptUse']
-                             + '<br>Dept Purch: ' + row['DeptPurch']
-                             + '</p><br>')
-            i += 1
-    return item_list
+    try:
+        df_obs_current = pd.read_sql("SELECT PartNum FROM eng.tblObsSpares", engine)
+    except Exception as e:
+        print(f"Database query error: {e}")
+        return pd.DataFrame()  # Return an empty DataFrame
 
+    # Identify new obsolete parts
+    df_obs_new = df_obs_all[~df_obs_all['PartNum'].isin(df_obs_current['PartNum'])]
+    return df_obs_new
 
-def insert_new_obs(new_obs):
-    """Insert New Obsoleted Parts into tblObsOrig"""
-    dbcnxn = pyodbc.connect(CONNSQL)
-    cursor = dbcnxn.cursor()
-    for item in new_obs:
-        item_string = ', '.join('?' * len(item))
-        strsql = """INSERT INTO [dbo].[tblObsOrig]
-                    VALUES (%s);
-                    """ % item_string
-        cursor.execute(strsql, item)
-        dbcnxn.commit()
+def add_obs(df):
+    """Add new Obs Spare Parts to the Obs Spare Parts Table"""
+    table_name = 'tblObsSpares'
+    df.to_sql(
+        name=table_name,
+        con=engine,
+        schema='eng',
+        if_exists='append',
+        index=False,
+        dtype= {
+                "PartNum": sqlalchemy.types.VARCHAR(length=255),
+             "EngPartNum": sqlalchemy.types.VARCHAR(length=255),
+        }
+    )
     return
 
+def check_obs():
+    df_obs_spares = find_new_obs(as400.get_inv())
+    df_obs_nums = df_obs_spares[['PartNum', 'EngPartNum']]
 
-def save_new_obs(new_obs):
-    """Insert New Obsoleted Parts into tblObsNew"""
-    dbcnxn = pyodbc.connect(CONNSQL)
-    cursor = dbcnxn.cursor()
+    # Renaming specific columns
+    df_obs_spares = df_obs_spares.rename(columns={'PartNum': 'Part Number', 'EngPartNum': 'Eng Part Number',
+                                                  'Desc1': 'Description 1', 'Desc2': 'Description 2'})
 
-    for item in new_obs:
-        item_string = ', '.join('?' * len(item))
-        strsql = """INSERT INTO [dbo].[tblObsNew]
-                    VALUES (%s);
-                    """ % item_string
-        cursor.execute(strsql, item)
-        dbcnxn.commit()
+    mail_list = ['sgilmour@idealtridon.com', 'bbrackman@idealtridon.com']
+
+    if df_obs_spares.size > 0:
+        df_html_table = df_obs_spares.iloc[:, :4].to_html(index=False, border=1)
+        send_email(mail_list, 'The Following Items Were Just Made Obsolete', df_html_table)
+        add_obs(df_obs_nums)
+    else:
+        print("No New Obsolete Parts")
     return
+
+def send_email(to, subject, body, content_type='html', username='elab@idealtridon.com'):
+    # Send Email
+    mail_server = "cas2013.ideal.us.com"
+
+    if isinstance(to, list):
+        # Join the list of email addresses into a single string
+        to = ', '.join(to)
+
+    try:
+    # Create a MIME email
+        message = MIMEMultipart()
+        message['From'] = username
+        message['To'] = to
+        message['Subject'] = subject
+        body = body + '<br><b>Sincerely,<br><br><br> The Engineering Overlords and Steve</b><br>'
+        body = body + '<br><br><a href="https://www.idealtridon.com/idealtridongroup.html"> ' \
+                        '<img src="https://sgilmo.com/email_logo.png" alt="Ideal Logo"></a>'
+        # Attach the body content (HTML or plain text)
+        message.attach(MIMEText(body, content_type))
+        # Set up the SMTP connection
+        with smtplib.SMTP(mail_server) as mserver:
+            mserver.send_message(message)  # Send the email
+
+        print(f"Email sent successfully to {to} with subject: {subject}")
+
+    except Exception as e:
+        print(f"Failed to send email: {e}")
 
 
 def check_reorder_pts():
