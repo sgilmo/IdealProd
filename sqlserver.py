@@ -310,8 +310,8 @@ def add_obs(df):
     )
     return
 
-def check_obs():
-    df_obs_spares = find_new_obs(as400.get_inv())
+def check_obs(inv):
+    df_obs_spares = find_new_obs(inv)
     df_obs_nums = df_obs_spares[['PartNum', 'EngPartNum']]
 
     # Renaming specific columns
