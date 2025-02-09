@@ -5,7 +5,7 @@
 import pyodbc
 import classes
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 import sqlalchemy.exc
 from urllib import parse
 import as400
@@ -26,14 +26,14 @@ PWD=Auto@matics;
 
 server = 'tn-sql'
 database = 'autodata'
-driver = 'ODBC+Driver+17+for+SQL+Server&AUTOCOMMIT=TRUE'
+driver = 'ODBC+Driver+17+for+SQL+Server'
 user = 'production'
 pwd = parse.quote_plus("Auto@matics")
 port = '1433'
 database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
 # Make Connection
 engine = create_engine(database_conn)
-conn = engine.connect()
+# conn = engine.connect()
 
 
 def update_dbusage(dbase):
@@ -272,7 +272,6 @@ def find_new_obs(result_spares):
 
     # Drop NaN values from critical columns
     df_spares = df_spares.dropna(subset=['PartNum', 'Cabinet', 'OnHand'])
-
     # Enforce data types safely
     for col, dtype in data_type_dict.items():
         if col in df_spares.columns:
@@ -280,12 +279,13 @@ def find_new_obs(result_spares):
                 df_spares[col] = pd.to_numeric(df_spares[col], errors='coerce')
             else:
                 df_spares[col] = df_spares[col].astype(dtype)
-
     # Filter for obsolete parts
     df_obs_all = df_spares[df_spares.Cabinet.str.contains('OBS', case=False, na=False)]
-
+    query = 'SELECT PartNum FROM eng.tblObsSpares'
     try:
-        df_obs_current = pd.read_sql("SELECT PartNum FROM eng.tblObsSpares", engine)
+        strsql = "SELECT PartNum FROM eng.tblObsSpares"
+        df_obs_current = pd.DataFrame(engine.connect().execute(text(strsql)))
+
     except Exception as e:
         print(f"Database query error: {e}")
         return pd.DataFrame()  # Return an empty DataFrame
@@ -311,21 +311,40 @@ def add_obs(df):
     return
 
 def check_obs(inv):
+    # Obtain obsolete spares DataFrame
     df_obs_spares = find_new_obs(inv)
-    df_obs_nums = df_obs_spares[['PartNum', 'EngPartNum']]
 
-    # Renaming specific columns
+    # Debugging: Print the columns of the dataframe to verify structure
+    # print("Columns in df_obs_spares:", df_obs_spares.columns.tolist())
+
+    # Check if required columns exist
+    required_columns = ['PartNum', 'EngPartNum']
+    if all(column in df_obs_spares.columns for column in required_columns):
+        # If columns exist, extract the required subset
+        df_obs_nums = df_obs_spares[required_columns]
+    else:
+        # Handle the case where columns are missing
+        print(f"Error: One or more required columns {required_columns} are missing from the input data.")
+        print("No action taken on obsolete spares.")
+        return
+
+    # Proceed with renaming columns and sending emails
     df_obs_spares = df_obs_spares.rename(columns={'PartNum': 'Part Number', 'EngPartNum': 'Eng Part Number',
                                                   'Desc1': 'Description 1', 'Desc2': 'Description 2'})
 
     mail_list = ['sgilmour@idealtridon.com', 'bbrackman@idealtridon.com']
 
+    # Check if there are any obsolete spares
     if df_obs_spares.size > 0:
+        # Create HTML table for email
         df_html_table = df_obs_spares.iloc[:, :4].to_html(index=False, border=1)
+
+        # Sending email and adding to obsolete spares database
         send_email(mail_list, 'The Following Items Were Just Made Obsolete', df_html_table)
         add_obs(df_obs_nums)
     else:
         print("No New Obsolete Parts")
+
     return
 
 def send_email(to, subject, body, content_type='html', username='elab@idealtridon.com'):
