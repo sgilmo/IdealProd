@@ -5,7 +5,6 @@ Load it on to existing SQL Server Table
 """
 
 import pandas as pd
-import typing
 from sqlalchemy import create_engine
 from urllib import parse
 from timeit import default_timer as timer
@@ -22,7 +21,6 @@ port = '1433'
 database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
 # Make Connection
 engine = create_engine(database_conn)
-# conn = engine.raw_connection()
 conn = engine.connect()
 
 
@@ -42,7 +40,7 @@ def read_pricelist():
 def update_db(df):
     """ Add prices to SQL server database"""
     print(df)
-    df.to_sql('Adirect', conn, schema='production', if_exists='replace', index=False)
+    df.to_sql('Adirect', engine, schema='production', if_exists='replace', index=False)
     return
 
 
