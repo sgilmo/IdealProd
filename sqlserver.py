@@ -8,7 +8,6 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 import sqlalchemy.exc
 from urllib import parse
-import as400
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -281,7 +280,6 @@ def find_new_obs(result_spares):
                 df_spares[col] = df_spares[col].astype(dtype)
     # Filter for obsolete parts
     df_obs_all = df_spares[df_spares.Cabinet.str.contains('OBS', case=False, na=False)]
-    query = 'SELECT PartNum FROM eng.tblObsSpares'
     try:
         strsql = "SELECT PartNum FROM eng.tblObsSpares"
         df_obs_current = pd.DataFrame(engine.connect().execute(text(strsql)))
