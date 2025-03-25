@@ -137,6 +137,7 @@ def get_spare_req():
         req_spare.desc = row.desc
         req_spare.mfg_pn = row.mfgpn
         req_spare.dwg = row.dwg
+        req_spare.dwg = row.rev
         req_spare.mfg = row.mfg
         req_spare.vendor = row.vendor
         req_spare.unit = row.unit
