@@ -14,8 +14,7 @@ def main():
     sqlserver.update_dbusage(as400.get_usage())
     sqlserver.update_emps(as400.get_emps())
     sqlserver.cleanup_pending()
-    reqspare.build_email()  # Build and Send email to purchasing
-    sqlserver.update_req()  # Timestamp Request when emailed to purchasing
+    reqspare.make_req()  # Build and Send email to purchasing
     sqlserver.move_entered_spares()  # Check if part entered on AS400
     sqlserver.move_comp_spares()  # Record stocked requested spare to its own table
     sqlserver.check_obs(as400_dbresult)
