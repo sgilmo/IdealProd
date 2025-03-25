@@ -154,19 +154,6 @@ def get_spare_req():
     return req_list
 
 
-def update_req():
-    """Enter Timestamp for database records"""
-    dbcnxn = pyodbc.connect(CONNSQL)
-    cursor = dbcnxn.cursor()
-    strsql = """UPDATE dbo.tblReqSpare
-                SET dbo.tblReqSpare.reqdate = GETDATE()
-                WHERE dbo.tblReqSpare.reqdate IS NULL
-            """
-    cursor.execute(strsql)
-    dbcnxn.commit()
-    return
-
-
 def move_entered_spares():
     """Move Entries from requested spare table that exist in tblInventory to
     the Entered Table (The point when the part was entered in the system)"""
