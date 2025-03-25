@@ -17,6 +17,7 @@ def build_email():
                              + '<br>Manufacturer: ' + item.mfg
                              + '<br>Manufacturer Pn: <strong>' + item.mfg_pn + '</strong>'
                              + '<br>Drawing: ' + item.dwg
+                             + '<br>Revision: ' + item.rev
                              + '<br>Vendor: ' + item.vendor
                              + ', Cost: $' + str(common_funcs.set_precision(item.cost, 2))
                              + ', Unit: ' + item.unit
@@ -34,7 +35,7 @@ def build_email():
         if i <= 2:
             stritems = " Item Available in the Tool Crib</h3>"
         mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com", "jmoore@idealtridon.com",
-                  "rjobman@idealtridon.com", item.req_by.lower() + "@idealtridon.com"]
+                  "rjobman@idealtridon.com", "nbolen@idealtridon.com", item.req_by.lower() + "@idealtridon.com"]
         # mailto = ["sgilmour@idealtridon.com"] # For Debug
         common_funcs.build_email(item_list, "Spare Part Request",
                                  "<br><h3>Please Make the Following " + str(i-1) + stritems, mailto)
