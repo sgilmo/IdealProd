@@ -1,90 +1,151 @@
 """Functions Required for Engineering Spare Part Requisitions"""
-import sqlserver
-import common_funcs
+import pyodbc
+from sqlalchemy import create_engine, text
+from urllib import parse
+import pandas as pd
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import datetime
+from pretty_html_table import build_table
 
-def build_email():
-    """ Build Email Struct and send to appropriate people"""
+# Define Database Connection
 
-    item_list = []
-    i = 1
-    reqspare = sqlserver.get_spare_req()
-    if len(reqspare) > 0:
-        for item in reqspare:
-            item_list.append('<h5>Item ' + str(i) + '</h5>'
-                             + '<p style="margin-left: 40px">'
-                             + 'Description: <strong>' + item.desc + '</strong>'
-                             + '<br>Requested By: ' + item.req_by
-                             + '<br>Manufacturer: ' + item.mfg
-                             + '<br>Manufacturer Pn: <strong>' + item.mfg_pn + '</strong>'
-                             + '<br>Drawing: ' + item.dwg
-                             + '<br>Revision: ' + item.rev
-                             + '<br>Vendor: ' + item.vendor
-                             + ', Cost: $' + str(common_funcs.set_precision(item.cost, 2))
-                             + ', Unit: ' + item.unit
-                             + '<br><br>Initial Order: ' + str(item.qty_stock)
-                             + ', Qty Per Use: ' + str(item.qty_per_use)
-                             + ', Annual Usage: ' + str(item.qty_annual_use)
-                             + '<br>Dept Usage: ' + item.depts
-                             + '<br>Reorder Pt: ' + str(item.reorder_pt)
-                             + ', Reorder Amt: ' + str(item.reorder_amt)
-                             + '</p><br>')
-            i += 1
-        stritems = ""
-        if i > 2:
-            stritems = " Items Available in the Tool Crib</h3>"
-        if i <= 2:
-            stritems = " Item Available in the Tool Crib</h3>"
-        mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com", "jmoore@idealtridon.com",
-                  "rjobman@idealtridon.com", "nbolen@idealtridon.com", item.req_by.lower() + "@idealtridon.com"]
-        # mailto = ["sgilmour@idealtridon.com"] # For Debug
-        common_funcs.build_email(item_list, "Spare Part Request",
-                                 "<br><h3>Please Make the Following " + str(i-1) + stritems, mailto)
-    return
+CONNAS400 = """
+Driver={iSeries Access ODBC Driver};
+system=10.143.12.10;
+Server=AS400;
+Database=PROD;
+UID=SMY;
+PWD=SMY;
+"""
+
+CONNSQL = """
+Driver={SQL Server};
+Server=tn-sql;
+Database=autodata;
+UID=production;
+PWD=Auto@matics;
+"""
+
+server = 'tn-sql'
+database = 'autodata'
+driver = 'ODBC+Driver+17+for+SQL+Server&AUTOCOMMIT=TRUE'
+user = 'production'
+pwd = parse.quote_plus("Auto@matics")
+port = '1433'
+database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
+# Make Connection
+engine = create_engine(database_conn)
 
 
-def build_email_obs(obs_spare):
-    """ Build Email Struct and send to appropriate people"""
-    item_list = []
-    i = 1
-    # mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com"]
-    mailto = ["sgilmour@idealtridon.com"]
-    # obs_spare = sqlserver.find_new_obs()
-    if len(obs_spare) > 0:
-        for item in obs_spare:
-            item_list.append('<h5>Item ' + str(i) + '</h5>'
-                             + '<p style="margin-left: 40px">'
-                             + 'Part Number: ' + str(item[1])
-                             + '<br>Eng Part Number: <strong>' + str(item[2]) + '</strong>'
-                             + '<br>Description 1: ' + str(item[3])
-                             + '<br>Description 2: ' + str(item[4])
-                             + '<br>Manufacturer: ' + str(item[5])
-                             + '<br>Manufacturer Pn: <strong>' + str(item[6]) + '</strong>'
-                             + '<br>Cabinet: ' + str(item[7])
-                             + '<br>Draw: ' + str(item[8])
-                             + '<br>On Hand: ' + str(item[9])
-                             + '<br>Cost: $' + str(item[10])
-                             + '<br>Date: $' + str(item[11])
-                             + '<br>Dept Use: ' + str(item[12])
-                             + '<br>Dept Purch: ' + str(item[13])
-                             + '</p><br>')
-            i += 1
-        stritems = ""
-        if i > 2:
-            stritems = str(i-1) + " Items Have Been Made Obsolete</h3>"
-        if i <= 2:
-            stritems = "Item Has Been Made Obsolete</h3>"
-        common_funcs.build_email(item_list, "Newly Obsoleted Spare Parts", "<br><h3>The Following "
-                                 + stritems, mailto)
+def send_email(to, subject, body, content_type='html', username='elab@idealtridon.com'):
+    # Send Email
+    mail_server = "cas2013.ideal.us.com"
 
-    return
+    if isinstance(to, list):
+        # Join the list of email addresses into a single string
+        to = ', '.join(to)
 
 
-def build_email_obs2(obs_spare):
-    """ Build Email Struct and send to appropriate people"""
-    mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com"]
-    stritems = "Item(s) Have Been Made Obsolete</h3>"
-    common_funcs.build_email(obs_spare, "Newly Obsoleted Spare Parts", "<br><h3>The Following "
-                             + stritems, mailto)
-    return
+    try:
+    # Create a MIME email
+        message = MIMEMultipart()
+        message['From'] = username
+        message['To'] = to
+        message['Subject'] = subject
+        start = """<html>
+                <body>
+                    <strong>Requested Spare Part(s):</strong><br />"""
+        end = """       </body>
+            </html>"""
+        body = body + '<br><b>Sincerely,<br><br><br> The Engineering Overlords and Steve</b><br>'
+        body = body + '<br><br><a href="https://www.idealtridon.com/idealtridongroup.html"> ' \
+                        '<img src="https://sgilmo.com/email_logo.png" alt="Ideal Logo"></a>'
+        # Attach the body content (HTML or plain text)
+        message.attach(MIMEText(start+body+end, content_type))
 
+
+        # Set up the SMTP connection
+        with smtplib.SMTP(mail_server) as mail_server:
+            mail_server.send_message(message)  # Send the email
+
+        print(f"Email sent successfully to {to} with subject: {subject}")
+
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+
+
+def update_req():
+    """Enter Timestamp for database records"""
+    try:
+        dbcnxn = pyodbc.connect(CONNSQL)
+        cursor = dbcnxn.cursor()
+        str_sql = """UPDATE dbo.tblReqSpare
+                    SET dbo.tblReqSpare.reqdate = GETDATE()
+                    WHERE dbo.tblReqSpare.reqdate IS NULL
+                """
+
+        # Execute the update
+        cursor.execute(str_sql)
+        dbcnxn.commit()
+        print("Database updated successfully!")
+
+        # Clean up resources
+        cursor.close()
+        dbcnxn.close()
+    except pyodbc.Error as e:
+        print(f"Database connection failed: {e}")
+
+
+def make_req():
+    """Make Request for New Spare Parts"""
+    strsql = """
+    SELECT * FROM dbo.tblReqSpare
+    WHERE dbo.tblReqSpare.reqdate IS NULL
+    """
+
+    # Ensure SQL is a string and trimmed
+    if not isinstance(strsql, str):
+        raise TypeError("The SQL query must be a string.")
+    strsql = strsql.strip()
+
+    with engine.connect() as connection:
+        df_reqspares = pd.read_sql_query(text(strsql), connection)
+    if not df_reqspares.empty:
+        print("Dataframe Size = ", df_reqspares.size)
+        df_reqspares['cost'] = df_reqspares['cost'].round(2)
+        df_reqspares['reqdate'] = datetime.now().date()
+        # Add requestors to mailing list
+        unique_reqby = df_reqspares['req_by'].drop_duplicates().tolist()
+        mail_list = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com", "jmoore@idealtridon.com",
+                     "rjobman@idealtridon.com", "nbolen@idealtridon.com"]
+        for item in unique_reqby:
+            mail_list.append(item.lower() + "@idealtridon.com")
+        print(mail_list)
+        df_reqspares = df_reqspares[
+            ['req_by', 'depts_using', 'desc', 'mfg', 'vendor', 'mfgpn', 'dwg', 'rev', 'cost', 'qty_to_stock',
+             'qty_per_use', 'qty_annual_use', 'reorder_pt', 'reorder_amt']]
+        # Renaming specific columns
+        df_reqspares = df_reqspares.rename(columns={'req_by': 'Requested By', 'desc': 'Description',
+                                                    'mfgpn': 'Manu Part Number', 'dwg': 'Drawing',
+                                                    'rev': 'Revision', 'depts_using': 'Dept',
+                                                    'mfg': 'Manufacturer', 'vendor': 'Vendor',
+                                                    'cost': 'Cost', 'qty_to_stock': 'Stock',
+                                                    'qty_per_use': 'Used', 'qty_annual_use': 'Annual Usage',
+                                                    'reorder_pt': 'Reorder Pt', 'reorder_amt': 'Amount'})
+        pretty_html = build_table(df_reqspares
+                                  , 'orange_dark'
+                                  , font_size='small'
+                                  , font_family='Arial'
+                                  , text_align='center'
+                                  , width='100%'
+                                  , index=False)
+
+        # df_html_table = df_reqspares.to_html(index=False, classes='GenericTable')
+        mail_list = ["sgilmour@idealtridon.com"]
+        send_email(mail_list, 'Please Add The Following Spare Parts', pretty_html)
+        update_req()
+
+        print(df_reqspares.shape)
 
