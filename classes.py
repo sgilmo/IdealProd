@@ -8,6 +8,7 @@ class Spare(object):
         self.mfg = 'Manufacturer'
         self.mfg_pn = 'Part Number'
         self.dwg = 'N/A'
+        self.rev = 'N/A'
         self.vendor = 'Vendor'
         self.unit = 'ea'
         self.cost = 0.00
