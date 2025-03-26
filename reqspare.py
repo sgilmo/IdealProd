@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """Functions Required for Engineering Spare Part Requisitions"""
 import pyodbc
 from sqlalchemy import create_engine, text
@@ -7,19 +9,10 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
-from pretty_html_table import build_table
 
 # Define Database Connection
 
-CONNAS400 = """
-Driver={iSeries Access ODBC Driver};
-system=10.143.12.10;
-Server=AS400;
-Database=PROD;
-UID=SMY;
-PWD=SMY;
-"""
-
+# For SQL Server Connection
 CONNSQL = """
 Driver={SQL Server};
 Server=tn-sql;
@@ -28,6 +21,7 @@ UID=production;
 PWD=Auto@matics;
 """
 
+#For SQLAlchemy Connection
 server = 'tn-sql'
 database = 'autodata'
 driver = 'ODBC+Driver+17+for+SQL+Server&AUTOCOMMIT=TRUE'
@@ -46,8 +40,6 @@ def send_email(to, subject, body, content_type='html', username='elab@idealtrido
     if isinstance(to, list):
         # Join the list of email addresses into a single string
         to = ', '.join(to)
-
-
     try:
     # Create a MIME email
         message = MIMEMultipart()
@@ -56,7 +48,7 @@ def send_email(to, subject, body, content_type='html', username='elab@idealtrido
         message['Subject'] = subject
         start = """<html>
                 <body>
-                    <strong>Requested Spare Part(s):</strong><br />"""
+                    <strong>Requested Spare Part(s):</strong><br><br />"""
         end = """       </body>
             </html>"""
         body = body + '<br><b>Sincerely,<br><br><br> The Engineering Overlords and Steve</b><br>'
@@ -64,7 +56,6 @@ def send_email(to, subject, body, content_type='html', username='elab@idealtrido
                         '<img src="https://sgilmo.com/email_logo.png" alt="Ideal Logo"></a>'
         # Attach the body content (HTML or plain text)
         message.attach(MIMEText(start+body+end, content_type))
-
 
         # Set up the SMTP connection
         with smtplib.SMTP(mail_server) as mail_server:
@@ -131,21 +122,32 @@ def make_req():
                                                     'mfgpn': 'Manu Part Number', 'dwg': 'Drawing',
                                                     'rev': 'Revision', 'depts_using': 'Dept',
                                                     'mfg': 'Manufacturer', 'vendor': 'Vendor',
-                                                    'cost': 'Cost', 'qty_to_stock': 'Stock',
-                                                    'qty_per_use': 'Used', 'qty_annual_use': 'Annual Usage',
-                                                    'reorder_pt': 'Reorder Pt', 'reorder_amt': 'Amount'})
-        pretty_html = build_table(df_reqspares
-                                  , 'orange_dark'
-                                  , font_size='small'
-                                  , font_family='Arial'
-                                  , text_align='center'
-                                  , width='100%'
-                                  , index=False)
+                                                    'cost': 'Cost', 'qty_to_stock': 'To Stock',
+                                                    'qty_per_use': 'Per Use', 'qty_annual_use': 'Annual Usage',
+                                                    'reorder_pt': 'Reorder Pt', 'reorder_amt': 'Reorder Amt'})
 
-        # df_html_table = df_reqspares.to_html(index=False, classes='GenericTable')
+        main_content = df_reqspares.to_html(index=False)
+        df_html = f"""
+            <html>
+            <head>           
+            <style>
+                thead {{color: black;}}
+                tbody {{color: black; }}
+                tfoot {{color: red;}}
+                table, th, td {{
+                    border: 0px solid black;
+                    padding: 5px;
+                }}
+            </style>                
+            </head>
+            <body>
+                {main_content}
+            </body>
+            </html>
+        """
         mail_list = ["sgilmour@idealtridon.com"]
-        send_email(mail_list, 'Please Add The Following Spare Parts', pretty_html)
+        send_email(mail_list, 'Please Add The Following Spare Parts', df_html)
         update_req()
 
-        print(df_reqspares.shape)
+
 
