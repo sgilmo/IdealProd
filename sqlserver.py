@@ -3,7 +3,6 @@
 """Common Database Functions Used on the SQL Server"""
 
 import pyodbc
-import classes
 import pandas as pd
 from sqlalchemy import create_engine, text
 import sqlalchemy.exc
@@ -12,8 +11,23 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-# Define Database Connection
+# Define constants
+DATA_TYPE_DICT = {
+    'StandardCost': float,
+    'OnHand': int,
+    'PartNum': str,
+    'ReOrderPt': int,
+    'ReOrderDate': int,
+    'Cabinet': str,
+    'Drawer': str
+}
+EXPECTED_COLUMNS = [
+    'PartNum', 'EngPartNum', 'Desc1', 'Desc2', 'Mfg', 'MfgPn',
+    'Cabinet', 'Drawer', 'OnHand', 'StandardCost', 'ReOrderDate',
+    'DeptUse', 'DeptPurch', 'ReOrderPt'
+]
 
+# Define Database Connections
 
 CONNSQL = """
 Driver={SQL Server};
@@ -32,20 +46,16 @@ port = '1433'
 database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
 # Make Connection
 engine = create_engine(database_conn)
-# conn = engine.connect()
 
 
 def update_dbusage(dbase):
     """ Add Spare Part Usage Data to SQL server database"""
-    print(len(dbase))
-    dbcnxn = pyodbc.connect(CONNSQL)
-    cursor = dbcnxn.cursor()
-    cursor.fast_executemany = True
-    # Delete Existing Records
     print("Deleting Existing Records on SQL Server")
-    cursor.execute("TRUNCATE TABLE dbo.tblUsage")
-    dbcnxn.commit()
-
+    with pyodbc.connect(CONNSQL) as dbcnxn:
+        with dbcnxn.cursor() as cursor:
+            cursor.fast_executemany = True
+            cursor.execute("TRUNCATE TABLE dbo.tblUsage")
+            dbcnxn.commit()
     # Load spare part usage data onto SQL server
     print("Loading data to SQL server")
     strsql = """INSERT INTO dbo.tblUsage (Date,Part,EngPart,Dept,Acct,Clock,Machine,Qty,Cost,SubTotal) 
@@ -54,6 +64,7 @@ def update_dbusage(dbase):
         cursor.executemany(strsql, dbase)
         dbcnxn.commit()
         print(str(len(dbase)) + " Records Processed")
+        dbcnxn.close()
     except Exception as e:
         msg = 'SQL Query Failed: ' + str(e)
         print(msg)
@@ -62,14 +73,13 @@ def update_dbusage(dbase):
 
 def update_emps(dbase):
     """Add Employee data to SQL server database"""
-    dbcnxn = pyodbc.connect(CONNSQL)
-    cursor = dbcnxn.cursor()
-    cursor.fast_executemany = True
     # Delete Existing Records
     print("Deleting Existing Employee Records on SQL Server")
-    cursor.execute("TRUNCATE TABLE production.EMPLOYEE")
-    dbcnxn.commit()
-
+    with pyodbc.connect(CONNSQL) as dbcnxn:
+        with dbcnxn.cursor() as cursor:
+            cursor.fast_executemany = True
+            cursor.execute("TRUNCATE TABLE production.EMPLOYEE")
+            dbcnxn.commit()
     # Load Employee data onto SQL server
     print("Loading Employee data to SQL server")
     strsql = """INSERT INTO production.EMPLOYEE (ID,NAME,ROLE) 
@@ -78,6 +88,7 @@ def update_emps(dbase):
         cursor.executemany(strsql, dbase)
         dbcnxn.commit()
         print(str(len(dbase)) + " Records Processed")
+        dbcnxn.close()
     except Exception as e:
         msg = 'SQL Inventory Query Failed: ' + str(e)
         print(msg)
@@ -86,14 +97,12 @@ def update_emps(dbase):
 
 def update_dbinv(dbase):
     """ Add Spare Part Inventory Data to SQL server database"""
-    print(len(dbase))
-    dbcnxn = pyodbc.connect(CONNSQL)
-    cursor = dbcnxn.cursor()
-    cursor.fast_executemany = True
-    # Delete Existing Records
     print("Deleting Existing Inventory Records on SQL Server")
-    cursor.execute("TRUNCATE TABLE dbo.tblInventory")
-    dbcnxn.commit()
+    with pyodbc.connect(CONNSQL) as dbcnxn:
+        with dbcnxn.cursor() as cursor:
+            cursor.fast_executemany = True
+            cursor.execute("TRUNCATE TABLE dbo.tblInventory")
+            dbcnxn.commit()
 
     # Load spare part Inventory data onto SQL server
     print("Loading data to SQL server")
@@ -104,6 +113,7 @@ def update_dbinv(dbase):
         cursor.executemany(strsql, dbase)
         dbcnxn.commit()
         print(str(len(dbase)) + " Records Processed")
+        dbcnxn.close()
     except Exception as e:
         msg = 'SQL Inventory Query Failed: ' + str(e)
         print(msg)
@@ -112,53 +122,25 @@ def update_dbinv(dbase):
 
 def cleanup_pending():
     """Remove Entries from tblSparesPend that exist in tblInventory"""
-    dbcnxn = pyodbc.connect(CONNSQL)
-    cursor = dbcnxn.cursor()
     strsql = """DELETE FROM dbo.tblSparesPend 
                 WHERE EXISTS (SELECT *
                               FROM dbo.tblInventory
                               WHERE dbo.tblInventory.EngPartNum = dbo.tblSparesPend.EngPn
                               )"""
-    cursor.execute(strsql)
-    dbcnxn.commit()
+    with pyodbc.connect(CONNSQL) as dbcnxn:
+        with dbcnxn.cursor() as cursor:
+            cursor.fast_executemany = True
+            cursor.execute(strsql)
+            dbcnxn.commit()
+    dbcnxn.close()
     return
-
-
-def get_spare_req():
-    """Get Spare Part Requests from SQL Server"""
-    dbcnxn = pyodbc.connect(CONNSQL)
-    cursor = dbcnxn.cursor()
-    strsql = """SELECT * FROM dbo.tblReqSpare
-                WHERE dbo.tblReqSpare.reqdate IS NULL
-            """
-    req_list = []
-    for row in cursor.execute(strsql):
-        req_spare = classes.Spare()
-        req_spare.desc = row.desc
-        req_spare.mfg_pn = row.mfgpn
-        req_spare.dwg = row.dwg
-        req_spare.dwg = row.rev
-        req_spare.mfg = row.mfg
-        req_spare.vendor = row.vendor
-        req_spare.unit = row.unit
-        req_spare.cost = row.cost
-        req_spare.qty_stock = row.qty_to_stock
-        req_spare.qty_per_use = row.qty_per_use
-        req_spare.depts = row.depts_using
-        req_spare.qty_annual_use = row.qty_annual_use
-        req_spare.req_by = row.req_by
-        req_spare.reorder_pt = row.reorder_pt
-        req_spare.reorder_amt = row.reorder_amt
-        req_spare.eng_partnumber = row.eng_partnumber
-        req_list.append(req_spare)
-    return req_list
 
 
 def move_entered_spares():
     """Move Entries from requested spare table that exist in tblInventory to
     the Entered Table (The point when the part was entered in the system)"""
-    dbcnxn = pyodbc.connect(CONNSQL)
-    cursor = dbcnxn.cursor()
+    # dbcnxn = pyodbc.connect(CONNSQL)
+    # cursor = dbcnxn.cursor()
 
     # Time stamp record when requested part is entered into the system (on the AS400).
     strsql = """UPDATE dbo.tblReqSpare                                        
@@ -167,8 +149,13 @@ def move_entered_spares():
                                   FROM dbo.tblInventory
                                   WHERE RTRIM(dbo.tblInventory.MfgPn) = RTRIM(dbo.tblReqSpare.mfgpn)
                                   )"""
-    cursor.execute(strsql)
-    dbcnxn.commit()
+    with pyodbc.connect(CONNSQL) as dbcnxn:
+        with dbcnxn.cursor() as cursor:
+            cursor.fast_executemany = True
+            cursor.execute(strsql)
+            dbcnxn.commit()
+    # cursor.execute(strsql)
+    # dbcnxn.commit()
 
     # Insert Engineering Part Number into records of parts on the AS400
     strsql = """UPDATE dbo.tblReqSpare                                        
@@ -176,8 +163,13 @@ def move_entered_spares():
                         FROM dbo.tblReqSpare
                         INNER JOIN dbo.tblInventory ON RTRIM(dbo.tblReqSpare.mfgpn) = RTRIM(dbo.tblInventory.MfgPn)                    
                         """
-    cursor.execute(strsql)
-    dbcnxn.commit()
+    with pyodbc.connect(CONNSQL) as dbcnxn:
+        with dbcnxn.cursor() as cursor:
+            cursor.fast_executemany = True
+            cursor.execute(strsql)
+            dbcnxn.commit()
+    # cursor.execute(strsql)
+    # dbcnxn.commit()
 
     # Move records to entered table after purchasing was notified
     strsql = """INSERT INTO dbo.tblEnteredSpare
@@ -187,8 +179,13 @@ def move_entered_spares():
                               FROM dbo.tblInventory
                               WHERE RTRIM(dbo.tblInventory.MfgPn) = RTRIM(dbo.tblReqSpare.mfgpn)
                               )"""
-    cursor.execute(strsql)
-    dbcnxn.commit()
+    with pyodbc.connect(CONNSQL) as dbcnxn:
+        with dbcnxn.cursor() as cursor:
+            cursor.fast_executemany = True
+            cursor.execute(strsql)
+            dbcnxn.commit()
+    # cursor.execute(strsql)
+    # dbcnxn.commit()
 
     # Remove records from Request Table if it has been entered into the AS400
     strsql = """DELETE FROM dbo.tblReqSpare 
@@ -196,8 +193,14 @@ def move_entered_spares():
                                   FROM dbo.tblInventory
                                   WHERE RTRIM(dbo.tblInventory.MfgPn) = RTRIM(dbo.tblReqSpare.mfgpn)
                                   )"""
-    cursor.execute(strsql)
-    dbcnxn.commit()
+    with pyodbc.connect(CONNSQL) as dbcnxn:
+        with dbcnxn.cursor() as cursor:
+            cursor.fast_executemany = True
+            cursor.execute(strsql)
+            dbcnxn.commit()
+    dbcnxn.close()
+    # cursor.execute(strsql)
+    # dbcnxn.commit()
     return
 
 
@@ -240,45 +243,69 @@ def move_comp_spares():
     dbcnxn.commit()
     return
 
-def find_new_obs(result_spares):
-    """Find any newly obsoleted spare parts"""
-    data_type_dict = {'StandardCost': float, 'OnHand': int, 'PartNum': str, 'ReOrderPt': int,
-                      'ReOrderDate': int, 'Cabinet': str, 'Drawer': str}
-    # Ensure the correct structure of incoming data
+
+def create_dataframe_safe(result_spares):
+    """Safely create and validate a DataFrame from result_spares."""
     try:
-        df_spares = pd.DataFrame.from_records(result_spares)
-        expected_columns = ['PartNum', 'EngPartNum', 'Desc1', 'Desc2', 'Mfg', 'MfgPn',
-                            'Cabinet', 'Drawer', 'OnHand', 'StandardCost', 'ReOrderDate',
-                            'DeptUse', 'DeptPurch', 'ReOrderPt']
-        if len(df_spares.columns) != len(expected_columns):
+        df = pd.DataFrame.from_records(result_spares)
+        if len(df.columns) != len(EXPECTED_COLUMNS):
             raise ValueError("Mismatch in the number of columns in result_spares")
-        df_spares.columns = expected_columns
+        df.columns = EXPECTED_COLUMNS
+        return df
     except Exception as e:
         print(f"Error creating DataFrame: {e}")
-        return pd.DataFrame()  # Return an empty DataFrame in case of failure
+        return pd.DataFrame()
 
-    # Drop NaN values from critical columns
-    df_spares = df_spares.dropna(subset=['PartNum', 'Cabinet', 'OnHand'])
-    # Enforce data types safely
-    for col, dtype in data_type_dict.items():
-        if col in df_spares.columns:
-            if dtype == int or dtype == float:
-                df_spares[col] = pd.to_numeric(df_spares[col], errors='coerce')
+
+def enforce_data_types(df):
+    """Ensure that columns have the correct data types."""
+    for col, dtype in DATA_TYPE_DICT.items():
+        if col in df.columns:
+            if dtype in {int, float}:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
             else:
-                df_spares[col] = df_spares[col].astype(dtype)
-    # Filter for obsolete parts
-    df_obs_all = df_spares[df_spares.Cabinet.str.contains('OBS', case=False, na=False)]
+                df[col] = df[col].astype(dtype)
+
+
+def filter_obsolete_parts(df):
+    """Filter the DataFrame for parts marked as obsolete."""
+    return df[df['Cabinet'].str.contains('OBS', case=False, na=False)]
+
+
+def fetch_current_obsolete_parts():
+    """Fetch the current list of obsolete parts from the database."""
     try:
         strsql = "SELECT PartNum FROM eng.tblObsSpares"
-        df_obs_current = pd.DataFrame(engine.connect().execute(text(strsql)))
-
+        return pd.DataFrame(engine.connect().execute(text(strsql)))
     except Exception as e:
         print(f"Database query error: {e}")
-        return pd.DataFrame()  # Return an empty DataFrame
+        return pd.DataFrame()
+
+
+def find_new_obs(result_spares):
+    """Find any newly obsoleted spare parts."""
+    df_spares = create_dataframe_safe(result_spares)
+    if df_spares.empty:
+        return pd.DataFrame()  # Exit early if DataFrame creation failed
+
+    # Drop NaN values from critical columns and enforce data types
+    df_spares = df_spares.dropna(subset=['PartNum', 'Cabinet', 'OnHand'])
+    enforce_data_types(df_spares)
+
+    # Filter obsolete parts
+    df_all_obsolete_parts = filter_obsolete_parts(df_spares)
+
+    # Fetch currently known obsolete parts
+    df_current_obsolete_parts = fetch_current_obsolete_parts()
+    if df_current_obsolete_parts.empty:
+        return pd.DataFrame()  # Exit early if database query failed
 
     # Identify new obsolete parts
-    df_obs_new = df_obs_all[~df_obs_all['PartNum'].isin(df_obs_current['PartNum'])]
-    return df_obs_new
+    df_new_obsolete_parts = df_all_obsolete_parts[
+        ~df_all_obsolete_parts['PartNum'].isin(df_current_obsolete_parts['PartNum'])
+    ]
+
+    return df_new_obsolete_parts
 
 def add_obs(df):
     """Add new Obs Spare Parts to the Obs Spare Parts Table"""
@@ -319,14 +346,32 @@ def check_obs(inv):
                                                   'Desc1': 'Description 1', 'Desc2': 'Description 2'})
 
     mail_list = ['sgilmour@idealtridon.com', 'bbrackman@idealtridon.com']
+    # mail_list = ['sgilmour@idealtridon.com']
 
     # Check if there are any obsolete spares
-    if df_obs_spares.size > 0:
+    if not df_obs_spares.empty:
         # Create HTML table for email
-        df_html_table = df_obs_spares.iloc[:, :4].to_html(index=False, border=1)
-
+        main_content = df_obs_spares.iloc[:, :4].to_html(index=False, border=1)
+        df_html = f"""
+                    <html>
+                    <head>           
+                    <style>
+                        thead {{color: black;}}
+                        tbody {{color: black; }}
+                        tfoot {{color: red;}}
+                        table, th, td {{
+                            border: 0px solid black;
+                            padding: 5px;
+                        }}
+                    </style>                
+                    </head>
+                    <body>
+                        {main_content}
+                    </body>
+                    </html>
+                """
         # Sending email and adding to obsolete spares database
-        send_email(mail_list, 'The Following Items Were Just Made Obsolete', df_html_table)
+        send_email(mail_list, 'The Following Items Were Just Made Obsolete', df_html)
         add_obs(df_obs_nums)
     else:
         print("No New Obsolete Parts")
