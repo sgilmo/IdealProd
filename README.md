@@ -4,6 +4,8 @@
                 Also moves camera files to engineering drive. 
 
 **getclamps.py** - Compares daily part data file "parts.csv" with FileMaker data, if there is a difference, 
-                   create new data file and send it out to all machines. 
+                   create new data file and send it out to all machines.
+
+**spares.py** - Tracks Engineering Generated spares thrugh the system from initial request until the items are in stock.
 
 
