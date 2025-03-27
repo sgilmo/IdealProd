@@ -1,6 +1,7 @@
 import pyodbc
 import os
 from urllib import parse
+from sqlalchemy import create_engine
 
 # Constants
 TRUNCATE_EMPLOYEE_TABLE = "TRUNCATE TABLE production.EMPLOYEE"
@@ -22,6 +23,17 @@ CONNECTION_STRING = (
     f"UID={os.getenv('SQL_UID')};"
     f"PWD={os.getenv('SQL_PWD')};"
 )
+
+# SQLAlchemy connection
+server = 'tn-sql'
+database = 'autodata'
+driver = 'ODBC+Driver+17+for+SQL+Server'
+user = os.getenv('SQL_UID')
+pwd = parse.quote_plus(os.getenv('SQL_PWD'))
+port = '1433'
+database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
+# Make Connection
+engine = create_engine(database_conn)
 
 
 def execute_query(query: str, params: list = None):
