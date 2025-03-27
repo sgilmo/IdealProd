@@ -7,7 +7,7 @@ and put it in the ftproot on TN-DATACOLLECT
 import pyodbc
 import csv
 import as400
-import sqlserver
+import sql_funcs
 
 CONNECTION = """
 Driver={iSeries Access ODBC Driver};
@@ -43,4 +43,4 @@ outputfile = open(emppath + "emps.csv", "w", newline='')
 out = csv.writer(outputfile, delimiter=',', quoting=csv.QUOTE_NONE, escapechar='\\')
 out.writerows(file1)
 outputfile.close()
-sqlserver.update_emps(as400.get_emps())
+sql_funcs.update_emps(as400.get_emps())
