@@ -6,10 +6,11 @@ import pyodbc
 import pandas as pd
 from sqlalchemy import create_engine, text
 import sqlalchemy.exc
-from urllib import parse
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from sql_funcs import CONNECTION_STRING
+from sql_funcs import engine
 
 # Define constants
 DATA_TYPE_DICT = {
@@ -27,113 +28,17 @@ EXPECTED_COLUMNS = [
     'DeptUse', 'DeptPurch', 'ReOrderPt'
 ]
 
-# Define Database Connections
 
-CONNSQL = """
-Driver={SQL Server};
-Server=tn-sql;
-Database=autodata;
-UID=production;
-PWD=Auto@matics;
-"""
-
-server = 'tn-sql'
-database = 'autodata'
-driver = 'ODBC+Driver+17+for+SQL+Server'
-user = 'production'
-pwd = parse.quote_plus("Auto@matics")
-port = '1433'
-database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
-# Make Connection
-engine = create_engine(database_conn)
-
-
-def update_dbusage(dbase):
-    """ Add Spare Part Usage Data to SQL server database"""
-    print("Deleting Existing Records on SQL Server")
-    with pyodbc.connect(CONNSQL) as dbcnxn:
-        with dbcnxn.cursor() as cursor:
-            cursor.fast_executemany = True
-            cursor.execute("TRUNCATE TABLE dbo.tblUsage")
-            dbcnxn.commit()
-    # Load spare part usage data onto SQL server
-    print("Loading data to SQL server")
-    strsql = """INSERT INTO dbo.tblUsage (Date,Part,EngPart,Dept,Acct,Clock,Machine,Qty,Cost,SubTotal) 
-                VALUES (?,?,?,?,?,?,?,?,?,?)"""
+def execute_query(query):
+    """Helper function to execute a SQL query."""
     try:
-        cursor.executemany(strsql, dbase)
-        dbcnxn.commit()
-        print(str(len(dbase)) + " Records Processed")
-        dbcnxn.close()
-    except Exception as e:
-        msg = 'SQL Query Failed: ' + str(e)
-        print(msg)
-    return
-
-
-def update_emps(dbase):
-    """Add Employee data to SQL server database"""
-    # Delete Existing Records
-    print("Deleting Existing Employee Records on SQL Server")
-    with pyodbc.connect(CONNSQL) as dbcnxn:
-        with dbcnxn.cursor() as cursor:
-            cursor.fast_executemany = True
-            cursor.execute("TRUNCATE TABLE production.EMPLOYEE")
-            dbcnxn.commit()
-    # Load Employee data onto SQL server
-    print("Loading Employee data to SQL server")
-    strsql = """INSERT INTO production.EMPLOYEE (ID,NAME,ROLE) 
-                    VALUES (?,?,?)"""
-    try:
-        cursor.executemany(strsql, dbase)
-        dbcnxn.commit()
-        print(str(len(dbase)) + " Records Processed")
-        dbcnxn.close()
-    except Exception as e:
-        msg = 'SQL Inventory Query Failed: ' + str(e)
-        print(msg)
-    return
-
-
-def update_dbinv(dbase):
-    """ Add Spare Part Inventory Data to SQL server database"""
-    print("Deleting Existing Inventory Records on SQL Server")
-    with pyodbc.connect(CONNSQL) as dbcnxn:
-        with dbcnxn.cursor() as cursor:
-            cursor.fast_executemany = True
-            cursor.execute("TRUNCATE TABLE dbo.tblInventory")
-            dbcnxn.commit()
-
-    # Load spare part Inventory data onto SQL server
-    print("Loading data to SQL server")
-    strsql = """INSERT INTO dbo.tblInventory (PartNum,EngPartNum,Desc1,Desc2,Mfg,
-                MfgPn,Cabinet,Drawer,OnHand,StandardCost,ReOrderDate,DeptUse,DeptPurch,ReOrderPt) 
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"""
-    try:
-        cursor.executemany(strsql, dbase)
-        dbcnxn.commit()
-        print(str(len(dbase)) + " Records Processed")
-        dbcnxn.close()
-    except Exception as e:
-        msg = 'SQL Inventory Query Failed: ' + str(e)
-        print(msg)
-    return
-
-
-def cleanup_pending():
-    """Remove Entries from tblSparesPend that exist in tblInventory"""
-    strsql = """DELETE FROM dbo.tblSparesPend 
-                WHERE EXISTS (SELECT *
-                              FROM dbo.tblInventory
-                              WHERE dbo.tblInventory.EngPartNum = dbo.tblSparesPend.EngPn
-                              )"""
-    with pyodbc.connect(CONNSQL) as dbcnxn:
-        with dbcnxn.cursor() as cursor:
-            cursor.fast_executemany = True
-            cursor.execute(strsql)
-            dbcnxn.commit()
-    dbcnxn.close()
-    return
+        with pyodbc.connect(CONNECTION_STRING) as db_connection:
+            with db_connection.cursor() as db_cursor:
+                db_cursor.fast_executemany = True
+                db_cursor.execute(query)
+                db_connection.commit()
+    except pyodbc.Error as e:
+        print(f"SQL execution error: {str(e)}")
 
 
 def move_entered_spares():
@@ -143,85 +48,58 @@ def move_entered_spares():
     # cursor = dbcnxn.cursor()
 
     # Time stamp record when requested part is entered into the system (on the AS400).
-    strsql = """UPDATE dbo.tblReqSpare                                        
+    query = """UPDATE dbo.tblReqSpare                                        
                     SET dbo.tblReqSpare.reqdate = GETDATE()                    
                     WHERE EXISTS(SELECT *
                                   FROM dbo.tblInventory
                                   WHERE RTRIM(dbo.tblInventory.MfgPn) = RTRIM(dbo.tblReqSpare.mfgpn)
                                   )"""
-    with pyodbc.connect(CONNSQL) as dbcnxn:
-        with dbcnxn.cursor() as cursor:
-            cursor.fast_executemany = True
-            cursor.execute(strsql)
-            dbcnxn.commit()
-    # cursor.execute(strsql)
-    # dbcnxn.commit()
+    execute_query(query)
 
     # Insert Engineering Part Number into records of parts on the AS400
-    strsql = """UPDATE dbo.tblReqSpare                                        
+    query1 = """UPDATE dbo.tblReqSpare                                        
                         SET dbo.tblReqSpare.eng_partnumber = dbo.tblInventory.EngPartNum
                         FROM dbo.tblReqSpare
                         INNER JOIN dbo.tblInventory ON RTRIM(dbo.tblReqSpare.mfgpn) = RTRIM(dbo.tblInventory.MfgPn)                    
                         """
-    with pyodbc.connect(CONNSQL) as dbcnxn:
-        with dbcnxn.cursor() as cursor:
-            cursor.fast_executemany = True
-            cursor.execute(strsql)
-            dbcnxn.commit()
-    # cursor.execute(strsql)
-    # dbcnxn.commit()
+    execute_query(query1)
 
     # Move records to entered table after purchasing was notified
-    strsql = """INSERT INTO dbo.tblEnteredSpare
+    query2 = """INSERT INTO dbo.tblEnteredSpare
                 SELECT *
                 FROM dbo.tblReqSpare
                 WHERE EXISTS(SELECT *
                               FROM dbo.tblInventory
                               WHERE RTRIM(dbo.tblInventory.MfgPn) = RTRIM(dbo.tblReqSpare.mfgpn)
                               )"""
-    with pyodbc.connect(CONNSQL) as dbcnxn:
-        with dbcnxn.cursor() as cursor:
-            cursor.fast_executemany = True
-            cursor.execute(strsql)
-            dbcnxn.commit()
-    # cursor.execute(strsql)
-    # dbcnxn.commit()
+    execute_query(query2)
 
     # Remove records from Request Table if it has been entered into the AS400
-    strsql = """DELETE FROM dbo.tblReqSpare 
+    query3 = """DELETE FROM dbo.tblReqSpare 
                     WHERE EXISTS (SELECT *
                                   FROM dbo.tblInventory
                                   WHERE RTRIM(dbo.tblInventory.MfgPn) = RTRIM(dbo.tblReqSpare.mfgpn)
                                   )"""
-    with pyodbc.connect(CONNSQL) as dbcnxn:
-        with dbcnxn.cursor() as cursor:
-            cursor.fast_executemany = True
-            cursor.execute(strsql)
-            dbcnxn.commit()
-    dbcnxn.close()
-    # cursor.execute(strsql)
-    # dbcnxn.commit()
+    execute_query(query3)
     return
 
 
 def move_comp_spares():
     """Move Entries from Entered spare table that exist in tblInventory
     To Comp Table"""
-    dbcnxn = pyodbc.connect(CONNSQL)
-    cursor = dbcnxn.cursor()
+
     # Time stamp record to indicate the day the part was in stock
-    strsql = """UPDATE dbo.tblEnteredSpare                    
+    query = """UPDATE dbo.tblEnteredSpare                    
                         SET dbo.tblEnteredSpare.reqdate = GETDATE() 
                         WHERE EXISTS(SELECT *
                                       FROM dbo.tblInventory
                                       WHERE dbo.tblInventory.MfgPn = dbo.tblEnteredSpare.mfgpn
                                       AND dbo.tblInventory.OnHand > 0
                                       )"""
-    cursor.execute(strsql)
-    dbcnxn.commit()
+    execute_query(query)
 
     # Move record to tblCompSpare. This is an archive of created spare parts
-    strsql = """INSERT INTO dbo.tblCompSpare
+    query1 = """INSERT INTO dbo.tblCompSpare
                 SELECT *
                 FROM dbo.tblEnteredSpare
                 WHERE EXISTS(SELECT *
@@ -229,18 +107,16 @@ def move_comp_spares():
                               WHERE dbo.tblInventory.MfgPn = dbo.tblEnteredSpare.mfgpn
                               AND dbo.tblInventory.OnHand > 0
                               )"""
-    cursor.execute(strsql)
-    dbcnxn.commit()
+    execute_query(query1)
 
     # Delete record in Entered Spare table if the part is in stock
-    strsql = """DELETE FROM dbo.tblEnteredSpare 
+    query2 = """DELETE FROM dbo.tblEnteredSpare 
                     WHERE EXISTS (SELECT *
                                   FROM dbo.tblInventory
                                   WHERE dbo.tblInventory.MfgPn = dbo.tblEnteredSpare.mfgpn
                                   AND dbo.tblInventory.OnHand > 0
                                   );"""
-    cursor.execute(strsql)
-    dbcnxn.commit()
+    execute_query(query2)
     return
 
 
@@ -250,7 +126,7 @@ def create_dataframe_safe(result_spares):
         df = pd.DataFrame.from_records(result_spares)
         if len(df.columns) != len(EXPECTED_COLUMNS):
             raise ValueError("Mismatch in the number of columns in result_spares")
-        df.columns = EXPECTED_COLUMNS
+        df.columns = pd.Index(EXPECTED_COLUMNS)
         return df
     except Exception as e:
         print(f"Error creating DataFrame: {e}")
@@ -409,23 +285,24 @@ def send_email(to, subject, body, content_type='html', username='elab@idealtrido
 
 def check_reorder_pts():
     """Find any changed reorder points"""
-    dbcnxn = pyodbc.connect(CONNSQL)
-    cursor = dbcnxn.cursor()
     changed = []
 
     strsql = """SELECT EngPartNum, Desc1, ReOrderPt FROM [dbo].[tblInventory]
                 EXCEPT
                 SELECT EngPartNum, Desc1, ReOrderPt FROM [dbo].[tblInvRef]
                 ;"""
-    cursor.execute(strsql)
-    for row in cursor:
-        changed.append(row)
+    with pyodbc.connect(CONNECTION_STRING) as dbcnxn:
+        with dbcnxn.cursor() as cursor:
+            cursor.fast_executemany = True
+            cursor.execute(strsql)
+            for row in cursor:
+                changed.append(row)
     return changed
 
 
 def log_changed_reorderpts(changed):
     """Insert Parts Changed Reorder Points into tblRePtChg"""
-    dbcnxn = pyodbc.connect(CONNSQL)
+    dbcnxn = pyodbc.connect(CONNECTION_STRING)
     cursor = dbcnxn.cursor()
     for item in changed:
         item_string = ', '.join('?' * len(item))
@@ -439,11 +316,11 @@ def log_changed_reorderpts(changed):
 
 def reset_ref_table():
     """Clear Out tblInvRef and Copy fresh values from tblInventory"""
-    dbcnxn = pyodbc.connect(CONNSQL)
-    cursor = dbcnxn.cursor()
     strsql = """DROP TABLE tblInvRef"""
-    cursor.execute(strsql)
-    dbcnxn.commit()
+    with pyodbc.connect(CONNECTION_STRING) as dbcnxn:
+        with dbcnxn.cursor() as cursor:
+            cursor.execute(strsql)
+            dbcnxn.commit()
     strsql = """SELECT * INTO tblInvRef FROM tblInventory"""
     cursor.execute(strsql)
     dbcnxn.commit()
