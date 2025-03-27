@@ -2,35 +2,14 @@
 
 """Functions Required for Engineering Spare Part Requisitions"""
 import pyodbc
-from sqlalchemy import create_engine, text
-from urllib import parse
+from sqlalchemy import text
 import pandas as pd
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
-
-# Define Database Connection
-
-# For SQL Server Connection
-CONNSQL = """
-Driver={SQL Server};
-Server=tn-sql;
-Database=autodata;
-UID=production;
-PWD=Auto@matics;
-"""
-
-#For SQLAlchemy Connection
-server = 'tn-sql'
-database = 'autodata'
-driver = 'ODBC+Driver+17+for+SQL+Server&AUTOCOMMIT=TRUE'
-user = 'production'
-pwd = parse.quote_plus("Auto@matics")
-port = '1433'
-database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
-# Make Connection
-engine = create_engine(database_conn)
+from sql_funcs import CONNECTION_STRING
+from sql_funcs import engine
 
 
 def send_email(to, subject, body, content_type='html', username='elab@idealtridon.com'):
@@ -70,20 +49,17 @@ def send_email(to, subject, body, content_type='html', username='elab@idealtrido
 def update_req():
     """Enter Timestamp for database records"""
     try:
-        dbcnxn = pyodbc.connect(CONNSQL)
-        cursor = dbcnxn.cursor()
         str_sql = """UPDATE dbo.tblReqSpare
                     SET dbo.tblReqSpare.reqdate = GETDATE()
                     WHERE dbo.tblReqSpare.reqdate IS NULL
                 """
-
-        # Execute the update
-        cursor.execute(str_sql)
-        dbcnxn.commit()
+        with pyodbc.connect(CONNECTION_STRING) as dbcnxn:
+            with dbcnxn.cursor() as cursor:
+                cursor.fast_executemany = True
+                cursor.execute(str_sql)
+                dbcnxn.commit()
         print("Database updated successfully!")
-
         # Clean up resources
-        cursor.close()
         dbcnxn.close()
     except pyodbc.Error as e:
         print(f"Database connection failed: {e}")
@@ -145,7 +121,7 @@ def make_req():
             </body>
             </html>
         """
-        mail_list = ["sgilmour@idealtridon.com"]
+        # mail_list = ["sgilmour@idealtridon.com"]
         send_email(mail_list, 'Please Add The Following Spare Parts', df_html)
         update_req()
 
