@@ -4,7 +4,7 @@
 
 import pyodbc
 import pandas as pd
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 import sqlalchemy.exc
 import smtplib
 from email.mime.text import MIMEText
