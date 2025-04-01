@@ -32,56 +32,6 @@ def scrub_data(row):
     return row
 
 
-def send_sparereq_email(datalist, subject, message_header):
-    """Send Email to Purchasing Group."""
-    # Generate string list for email message
-    str_msg = [message_header]
-    for files in datalist:
-        str_msg.append("     " + files + "\n")
-    sender = "elab@idealtridon.com"
-    mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com", "kknight@idealtridon.com",
-              "rjobman@idealtridon.com"]
-    # mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com"] # For general beta testing
-    # mailto = ["sgilmour@idealtridon.com"]  # For debug/testing
-    text = ''.join(str_msg)
-    message = """\
-From: %s
-To: %s
-MIME-Version: 1.0
-Content-type: text/html
-Subject: %s
-
-%s
-        """ % (sender, ", ".join(mailto), subject, text)
-    # Send Email
-    send_email(sender, mailto, message)
-    return
-
-
-def send_newobs_email(datalist, subject, message_header):
-    """Send Email to Eng Group."""
-    # Generate string list for email message
-    str_msg = [message_header]
-    for files in datalist:
-        str_msg.append("     " + files + "\n")
-    sender = "elab@idealtridon.com"
-    mailto = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com"]
-    # mailto = ["sgilmour@idealtridon.com"] # For Debug/Testing
-    text = ''.join(str_msg)
-    message = """\
-From: %s
-To: %s
-MIME-Version: 1.0
-Content-type: text/html
-Subject: %s
-
-%s
-        """ % (sender, ", ".join(mailto), subject, text)
-    # Send Email
-    send_email(sender, mailto, message)
-    return
-
-
 def set_precision(num, prec):
     """Return Specific Precision of Floating Point Number"""
     return '{:.{}f}'.format(num, prec)
