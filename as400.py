@@ -4,6 +4,11 @@
 """Common Database Functions Used on the iSeries AS400"""
 
 import pyodbc
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 # Define Database Connection
 
@@ -15,134 +20,134 @@ Database=PROD;
 UID=SMY;
 PWD=SMY;
 """
+TABLE_FPSPRMAST1 = "PROD.FPSPRMAST1"
+TABLE_FPSPRMAST2 = "PROD.FPSPRMAST2"
+FACILITY = 9
+
+
+def connect_to_db():
+    """Establish a Database Connection."""
+    try:
+        return pyodbc.connect(CONNAS400)
+    except pyodbc.Error as ex:
+        print(f"Database connection failed: {ex}")
+        logger.error(f"Database connection failed: {ex}")
+        raise
+
+
+def process_query_result(cursor, query_sql, description):
+    """Execute a query and return the result with error handling."""
+    try:
+        cursor.execute(query_sql)
+        results = cursor.fetchall()
+        print(f"{len(results)} {description} Processed.")
+        return results
+    except Exception as e:
+        print(f"{description} Query Failed: {e}")
+        print(query_sql)
+        logger.error(f"{description} Query Failed: {e}")
+        return []
 
 
 def get_inv():
-    """Get Spare Inventory Data From iSeries AS400"""
-    dbcnxn = pyodbc.connect(CONNAS400)
-    cursor = dbcnxn.cursor()
+    """Get Spare Inventory Data From iSeries AS400."""
+    query_sql = f"""
+        SELECT {TABLE_FPSPRMAST1}.SPH_PART,
+               STRIP({TABLE_FPSPRMAST1}.SPH_ENGPRT),
+               STRIP({TABLE_FPSPRMAST1}.SPH_DESC1),
+               STRIP({TABLE_FPSPRMAST1}.SPH_DESC2),
+               STRIP({TABLE_FPSPRMAST1}.SPH_MFG),
+               STRIP({TABLE_FPSPRMAST1}.SPH_MFGPRT),
+               STRIP({TABLE_FPSPRMAST2}.SPD_CABINT),
+               STRIP({TABLE_FPSPRMAST2}.SPD_DRAWER),
+               {TABLE_FPSPRMAST2}.SPD_QOHCUR,
+               {TABLE_FPSPRMAST1}.SPH_CURSTD,
+               STRIP({TABLE_FPSPRMAST2}.SPD_REODTE),
+               STRIP({TABLE_FPSPRMAST2}.SPD_USECC),
+               STRIP({TABLE_FPSPRMAST2}.SPD_PURCC),
+               STRIP({TABLE_FPSPRMAST2}.SPD_QREORD)
+        FROM {TABLE_FPSPRMAST1}
+        INNER JOIN {TABLE_FPSPRMAST2}
+        ON {TABLE_FPSPRMAST1}.SPH_PART = {TABLE_FPSPRMAST2}.SPD_PART
+        WHERE {TABLE_FPSPRMAST2}.SPD_FACIL = {FACILITY}
+    """
+    with connect_to_db() as db_connection:
+        cursor = db_connection.cursor()
+        return process_query_result(cursor, query_sql, "AS400 Inventory Records")
 
-    strsql = """SELECT PROD.FPSPRMAST1.SPH_PART,
-                       STRIP(PROD.FPSPRMAST1.SPH_ENGPRT),
-                       STRIP(PROD.FPSPRMAST1.SPH_DESC1),
-                       STRIP(PROD.FPSPRMAST1.SPH_DESC2),
-                       STRIP(PROD.FPSPRMAST1.SPH_MFG),
-                       STRIP(PROD.FPSPRMAST1.SPH_MFGPRT),
-                       STRIP(PROD.FPSPRMAST2.SPD_CABINT),
-                       STRIP(PROD.FPSPRMAST2.SPD_DRAWER),
-                       PROD.FPSPRMAST2.SPD_QOHCUR,
-                       PROD.FPSPRMAST1.SPH_CURSTD,
-                       STRIP(PROD.FPSPRMAST2.SPD_REODTE),
-                       STRIP(PROD.FPSPRMAST2.SPD_USECC),
-                       STRIP(PROD.FPSPRMAST2.SPD_PURCC),
-                       STRIP(PROD.FPSPRMAST2.SPD_QREORD)
-                FROM PROD.FPSPRMAST1 INNER JOIN PROD.FPSPRMAST2 ON PROD.FPSPRMAST1.SPH_PART = PROD.FPSPRMAST2.SPD_PART
-                WHERE (((PROD.FPSPRMAST2.SPD_FACIL)=9))"""
-    try:
-        cursor.execute(strsql)
-        result = cursor.fetchall()
-    except Exception as e:
-        msg = 'AS400 Inventory Query Failed: ' + str(e)
-        result = []
-        print(msg)
-        print(strsql)
-    else:
-        msg = str(len(result)) + " AS400 Inventory Records Processed From Inventory Tables"
-        print(msg)
-    dbcnxn.close()
-    return result
 
 
 def build_inv_list(result):
-    dbase = []
+    """Build Inventory List with Processed Data."""
+    database = []
     for row in result:
         row[10] = make_date(row[10])
-        dbase.append(list([str(x) for x in row]))
-    return dbase
+        database.append([str(x) for x in row])
+    return database
+
 
 
 def get_usage():
-    """Get Spare Part Usage Data From iSeries AS400"""
-    dbcnxn = pyodbc.connect(CONNAS400)
-    cursor = dbcnxn.cursor()
+    """Get Spare Part Usage Data From iSeries AS400."""
     tables = ('FPSPRUSAG', 'FPSPRUSAGC', 'FPSPRUSAGP')
-    dbase = []
-    for table in tables:
-        strsql = f"""-- noinspection SqlResolveForFile
-                    SELECT STRIP(PROD.{table!s}.SPU_TRANDT),
-                           STRIP(PROD.{table!s}.SPU_PART),
-                           STRIP(PROD.{table!s}.SPU_ENGPRT),
-                           STRIP(PROD.{table!s}.SPU_USECC),
-                           STRIP(PROD.{table!s}.SPU_PURCC),
-                           STRIP(PROD.{table!s}.SPU_CLOCK),
-                           STRIP(PROD.{table!s}.SPU_RIDPO),
-                           PROD.{table!s}.SPU_TRNQTY,
-                           PROD.{table!s}.SPU_STDCST,
-                           ROUND(PROD.{table!s}.SPU_TRNQTY * PROD.{table!s}.SPU_STDCST,2)
-                    FROM PROD.{table!s}
-                    WHERE (PROD.{table!s}.SPU_FACIL = 9)
-                    AND STRIP(PROD.{table!s}.SPU_USECC) IS NOT NULL"""
-        try:
-            cursor.execute(strsql)
-            result = cursor.fetchall()
-        except Exception as e:
-            msg = 'AS400 Usage Query Failed: ' + str(e)
-            result = []
-            print(msg)
-        else:
-            msg = str(len(result)) + " AS400 Usage Records Processed From Table " + table
-            print(msg)
-        for row in result:
-            row[0] = make_date(row[0])
-            dbase.append(list([str(x) for x in row]))
-    dbcnxn.close()
-    return dbase
+    database = []
+
+    with connect_to_db() as db_connection:
+        cursor = db_connection.cursor()
+        for table in tables:
+            query_sql = f"""
+                SELECT STRIP(PROD.{table}.SPU_TRANDT),
+                       STRIP(PROD.{table}.SPU_PART),
+                       STRIP(PROD.{table}.SPU_ENGPRT),
+                       STRIP(PROD.{table}.SPU_USECC),
+                       STRIP(PROD.{table}.SPU_PURCC),
+                       STRIP(PROD.{table}.SPU_CLOCK),
+                       STRIP(PROD.{table}.SPU_RIDPO),
+                       PROD.{table}.SPU_TRNQTY,
+                       PROD.{table}.SPU_STDCST,
+                       ROUND(PROD.{table}.SPU_TRNQTY * PROD.{table}.SPU_STDCST, 2)
+                FROM PROD.{table}
+                WHERE PROD.{table}.SPU_FACIL = {FACILITY}
+                AND STRIP(PROD.{table}.SPU_USECC) IS NOT NULL
+            """
+            result = process_query_result(cursor, query_sql, f"AS400 Usage Records from {table}")
+            for row in result:
+                row[0] = make_date(row[0])
+                database.append([str(x) for x in row])
+    return database
+
 
 
 def get_emps():
-    """Get Employees From iSeries AS400"""
+    """Get Employees From iSeries AS400."""
+    employees_eng_login = ['9999', 'ELMER J FUDD', 'ENG']
+    employees_lead_login = ['1208', 'WILE E COYOTE', 'ENG']
+    engineers = {'1208', '9107', '1656', '1472', '1626', '1351', '9999', '2126', '1496'}
+
+    query_sql = """
+        SELECT STRIP(EMP_CLOCK_NUMBER) AS Clock,
+               CONCAT(CONCAT(STRIP(EMP_FIRST_NAME), ' '),
+               STRIP(EMP_LAST_NAME)) AS Name,
+               STRIP(EMP_POSITION_CODE) AS Code
+        FROM PROD.FPCLCKPAY
+        WHERE EMP_LOCATION = '09'
+        AND EMP_LAST_NAME <> 'TEMP'
+        AND EMP_SHIFT_TYPE = 'A'
+        ORDER BY EMP_CLOCK_NUMBER
+    """
     try:
-        dbcnxn = pyodbc.connect(CONNAS400)
+        with connect_to_db() as db_connection:
+            cursor = db_connection.cursor()
+            result = process_query_result(cursor, query_sql, "AS400 Employee Records")
+            result.extend([employees_eng_login, employees_lead_login])
+            for row in result:
+                row[2] = 'ENG' if row[0] in engineers else 'DEF'
+            return result
     except pyodbc.Error as ex:
-        sqlstate = ex.args[0]
-        if sqlstate == '08001':
-            print("Unable to connect to SQL Server")
-        else:
-            print("An error occured: ", ex)
+        print("Unable to connect to SQL Server" if ex.args[0] == '08001' else f"An error occurred: {ex}")
+        logger.error("Unable to connect to SQL Server" if ex.args[0] == '08001' else f"An error occurred: {ex}")
         return []
-    else:
-        cursor = dbcnxn.cursor()
-        eng_login = ['9999', 'ELMER J FUDD', 'ENG']
-        lead_login = ['1208', 'WILE E COYOTE', 'ENG']
-        eng = ['1208', '9107', '1656', '1472', '1626', '1351', '9999', '2126', '1496']
 
-        strsql = """SELECT STRIP(EMP_CLOCK_NUMBER) As Clock,
-                    CONCAT(CONCAT(STRIP(EMP_FIRST_NAME), ' '),
-                    STRIP(EMP_LAST_NAME)) As Name,
-                    STRIP(EMP_POSITION_CODE) As Code
-            FROM PROD.FPCLCKPAY
-            WHERE (EMP_LOCATION = '09') AND (EMP_LAST_NAME <> 'TEMP') AND (EMP_SHIFT_TYPE = 'A')
-            ORDER BY EMP_CLOCK_NUMBER"""
-        try:
-            cursor.execute(strsql)
-            result = list(cursor.fetchall())
-            result.append(eng_login)
-            result.append(lead_login)
-        except Exception as e:
-            msg = 'AS400 Employee Query Failed: ' + str(e)
-            result = []
-            print(msg)
-        else:
-            msg = str(len(result)) + " AS400 Employee Records Processed From Table"
-            print(msg)
-
-        for row in result:
-            if row[0] in eng:
-                row[2] = 'ENG'
-            else:
-                row[2] = 'DEF'
-        dbcnxn.close()
-        return result
 
 
 def make_date(val):
