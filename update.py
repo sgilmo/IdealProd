@@ -50,31 +50,6 @@ logger.addHandler(file_handler)
 # initialize bad file list for emailing files that could not be transferred
 BAD_FILE_LIST = []
 
-# Define Database ConnectionS
-# SQL Server
-# CONNECTION_STRING = """
-# Driver={ODBC Driver 17 for SQL Server};
-# Server=tn-sql;
-# Database=autodata;
-# autocommit=true;
-# UID=production;
-# PWD=Auto@matics;
-# """
-#
-# # SQLAlchemy connection
-# server = 'tn-sql'
-# database = 'autodata'
-# driver = 'ODBC+Driver+17+for+SQL+Server'
-# user = 'production'
-# pwd = parse.quote_plus("Auto@matics")
-# port = '1433'
-# database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
-# # Make Connection
-# engine = create_engine(database_conn)
-# conn = engine.raw_connection()
-# conn = engine.connect()
-# cursor = conn.cursor()
-
 
 # Define some Functions
 def check_dir(directory):
