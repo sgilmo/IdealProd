@@ -15,12 +15,12 @@ Diameter test results.
 import os
 import shutil
 # import urllib
-from urllib import parse
+# from urllib import parse
 import pandas as pd
 from datetime import date
 from datetime import timedelta
 from pretty_html_table import build_table
-from sqlalchemy import create_engine
+# from sqlalchemy import create_engine
 import csv
 from datetime import datetime
 import sqlalchemy.exc
@@ -29,6 +29,7 @@ import pyodbc
 import common_funcs
 import logging
 from timeit import default_timer as timer
+from sql_funcs import CONNECTION_STRING, engine
 
 # Setup Logging
 # Gets or creates a logger
@@ -51,27 +52,27 @@ BAD_FILE_LIST = []
 
 # Define Database ConnectionS
 # SQL Server
-CONNECTION_MSSQL = """
-Driver={ODBC Driver 17 for SQL Server};
-Server=tn-sql;
-Database=autodata;
-autocommit=true;
-UID=production;
-PWD=Auto@matics;
-"""
-
-# SQLAlchemy connection
-server = 'tn-sql'
-database = 'autodata'
-driver = 'ODBC+Driver+17+for+SQL+Server'
-user = 'production'
-pwd = parse.quote_plus("Auto@matics")
-port = '1433'
-database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
-# Make Connection
-engine = create_engine(database_conn)
+# CONNECTION_STRING = """
+# Driver={ODBC Driver 17 for SQL Server};
+# Server=tn-sql;
+# Database=autodata;
+# autocommit=true;
+# UID=production;
+# PWD=Auto@matics;
+# """
+#
+# # SQLAlchemy connection
+# server = 'tn-sql'
+# database = 'autodata'
+# driver = 'ODBC+Driver+17+for+SQL+Server'
+# user = 'production'
+# pwd = parse.quote_plus("Auto@matics")
+# port = '1433'
+# database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
+# # Make Connection
+# engine = create_engine(database_conn)
 # conn = engine.raw_connection()
-conn = engine.connect()
+# conn = engine.connect()
 # cursor = conn.cursor()
 
 
@@ -222,7 +223,7 @@ def load_db(folder_name, table_name, dtype_dict):
 def load_mach_prod(fpath, size):
     """Load Production Data into SQL Server."""
     # prodbadfilepath = "\\Inetpub\\ftproot\\machprodbad\\"
-    dbcnxn = pyodbc.connect(CONNECTION_MSSQL)
+    dbcnxn = pyodbc.connect(CONNECTION_STRING)
     cursor = dbcnxn.cursor()
     # Loads production data to SQL server
     check_file_size(fpath, "Prod")  # Move zero size files to other directory
@@ -272,7 +273,7 @@ def load_mach_prod(fpath, size):
 def load_mach_production(fpath, size):
     """Load Shift Production Data into SQL Server."""
     prodbadfilepath = "\\Inetpub\\ftproot\\acmprodbad\\"
-    dbcnxn = pyodbc.connect(CONNECTION_MSSQL)
+    dbcnxn = pyodbc.connect(CONNECTION_STRING)
     cursor = dbcnxn.cursor()
     # Loads shift data to SQL server
     check_file_size(fpath, "Production")  # Move zero size files to other directory
@@ -328,7 +329,7 @@ def log_bad_row(badrow, dirname, desc):
 def log_test_data(fpath, test_type):
     """Log Ship Diameter Tests to SQL Server."""
     testbadfilepath = "\\Inetpub\\ftproot\\acmtestbad\\"
-    dbcnxn = pyodbc.connect(CONNECTION_MSSQL)
+    dbcnxn = pyodbc.connect(CONNECTION_STRING)
     cursor = dbcnxn.cursor()
     filepath = fpath + "\\"
     filelist = os.listdir(filepath)
@@ -378,7 +379,7 @@ def log_test_data(fpath, test_type):
 def log_conegage_data():
     """Log Ship Diameter Tests to SQL Server."""
     filepath = "\\Inetpub\\ftproot\\conegage\\"
-    dbcnxn = pyodbc.connect(CONNECTION_MSSQL)
+    dbcnxn = pyodbc.connect(CONNECTION_STRING)
     cursor = dbcnxn.cursor()
     filelist = os.listdir(filepath)
     for filename in filelist:
@@ -507,7 +508,7 @@ def set_cam_files():
 def load_strut_production(fpath, size):
     """Load Hourly Strut Production Data into SQL Server."""
     strutbadfilepath = "\\Inetpub\\ftproot\\Wesanco\\Badfiles\\"
-    dbcnxn = pyodbc.connect(CONNECTION_MSSQL)
+    dbcnxn = pyodbc.connect(CONNECTION_STRING)
     cursor = dbcnxn.cursor()
     # Loads shift data to SQL server
     check_file_size(fpath, "Strut")  # Move zero size files to other directory
@@ -553,7 +554,7 @@ def load_strut_production(fpath, size):
 def load_fastlok_production(fpath, size):
     """Load Hourly FastLok Production Data into SQL Server."""
     fastlokbadfilepath = "\\Inetpub\\ftproot\\FastLok\\Badfiles\\"
-    dbcnxn = pyodbc.connect(CONNECTION_MSSQL)
+    dbcnxn = pyodbc.connect(CONNECTION_STRING)
     cursor = dbcnxn.cursor()
     # Loads shift data to SQL server
     check_file_size(fpath, "FastLok")  # Move zero size files to other directory
