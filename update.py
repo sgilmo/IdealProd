@@ -14,13 +14,10 @@ Diameter test results.
 
 import os
 import shutil
-# import urllib
-# from urllib import parse
 import pandas as pd
 from datetime import date
 from datetime import timedelta
 from pretty_html_table import build_table
-# from sqlalchemy import create_engine
 import csv
 from datetime import datetime
 import sqlalchemy.exc
@@ -29,6 +26,7 @@ import pyodbc
 import common_funcs
 import logging
 from timeit import default_timer as timer
+from sqlalchemy import text
 from sql_funcs import CONNECTION_STRING, engine
 
 # Setup Logging
@@ -50,8 +48,110 @@ logger.addHandler(file_handler)
 # initialize bad file list for emailing files that could not be transferred
 BAD_FILE_LIST = []
 
+# Constants for paths
+BASE_PATH = "\\Inetpub\\ftproot\\"
+MAILTO = ["sgilmour@idealtridon.com"]
 
 # Define some Functions
+def _is_obsolete_file(file_name):
+    """Check if a file is an obsolete packer or micro file."""
+    return file_name.startswith(('2', '9')) and len(file_name) > 10
+
+
+def _move_file(file_name, src_path, dest_path, action):
+    """Move a file to a designated folder and log action."""
+    shutil.move(f"{src_path}{file_name}", f"{dest_path}{file_name}")
+    print(f'File {file_name} Moved to {action} Folder')
+
+
+def _filter_data(dataframe, table_name):
+    """Filter the DataFrame for the specific table based on rules."""
+    if table_name in ["AcmRuntime", "tblStrut_Exp"]:
+        return dataframe[dataframe['RecDate'].ne('0')]
+    elif table_name == "MachProd":
+        return dataframe[
+            (dataframe['Total'] > 0) &
+            (dataframe['Start'] != '0') &
+            (dataframe['Stop'] != '0')
+            ]
+    elif table_name == "MachShifts":
+        dataframe = _sanitize_shift_data(dataframe)
+        return dataframe[
+            (dataframe['ProdCnt'] > 0) &
+            (dataframe['ShiftDate'] != '0') &
+            (dataframe['ShiftRecDate'] != '0') &
+            (dataframe['Shift'] > 0)
+            ]
+    elif table_name == "MachJobs":
+        _fill_defaults(dataframe, {"SetupMan": "Unknown", "CoType": "No Changes"})
+        return dataframe[
+            (dataframe['JobCnt'] > 0) &
+            (dataframe['JobComp'].ne('0')) &
+            (dataframe['JobStart'].ne('0'))
+            ]
+    elif table_name == "opprod":
+        dataframe = _sanitize_operator_data(dataframe)
+        return dataframe[dataframe['login'] != '0']
+    return dataframe
+
+
+def _sanitize_shift_data(dataframe):
+    """Sanitize MachShifts-specific data."""
+    if not (common_funcs.check_for_int(dataframe.Eff) and
+            common_funcs.check_for_int(dataframe.NetEff) and
+            common_funcs.check_for_int(dataframe.Util)):
+        # dataframe.update({"Eff": 0.00, "NetEff": 0.00, "Util": 0.00})
+        dataframe.Eff = 0.00
+        dataframe.NetEff = 0.00
+        dataframe.Util = 0.0
+    dataframe['Operator'].fillna("Unknown", inplace=True)
+    dataframe['Operator'].replace(to_replace="Please login", value='Unknown', inplace=True)
+    return dataframe
+
+
+def _sanitize_operator_data(dataframe):
+    """Sanitize opprod-specific data."""
+    if not (common_funcs.check_for_int(dataframe.eff) and
+            common_funcs.check_for_int(dataframe.neteff) and
+            common_funcs.check_for_int(dataframe.util)):
+        # dataframe.update({"eff": 0.00, "neteff": 0.00, "util": 0.00})
+        dataframe.eff = 0.00
+        dataframe.neteff = 0.00
+        dataframe.util = 0.00
+    return dataframe
+
+
+def _fill_defaults(dataframe, default_values):
+    """Fill default values in the DataFrame."""
+    for column, default_value in default_values.items():
+        dataframe[column].fillna(default_value, inplace=True)
+        dataframe[column].replace(to_replace="Please login", value=default_value, inplace=True)
+
+
+def _handle_file_error(exception, file_name, folder_paths, error_type):
+    """Handle errors during file processing."""
+    prob_desc = f'{file_name} Had A Problem Loading: Moving to Bad Folder'
+    prob_detail = f'<b>Problem Detail: </b><br>{exception}'
+    message_header = f'Problem With <i>{file_name}</i> : {error_type}'
+    print(prob_desc)
+    print(prob_detail)
+    print(message_header)
+
+    common_funcs.build_email2(prob_detail, prob_desc, message_header, MAILTO)
+    shutil.move(f"{folder_paths['main']}{file_name}", f"{folder_paths['bad']}{file_name}")
+
+
+def _handle_sql_error(exception, error_description):
+    """Handle SQL-related exceptions."""
+    prob_desc = f'Problem Sending Data to SQL Server Table ({error_description})'
+    prob_detail = f'<b>Problem Detail: </b><br>{exception}'
+    message_header = prob_desc
+    print(prob_desc)
+    print(prob_detail)
+    common_funcs.build_email2(prob_detail, prob_desc, message_header, MAILTO)
+
+
+
 def check_dir(directory):
     """Create Directories As Needed"""
     folder = os.path.isdir(directory)
@@ -94,105 +194,60 @@ def move_cam_files(fpath, dest):
 
 # Collect Machine Production data
 def load_db(folder_name, table_name, dtype_dict):
-    """Load Operator Production Data into the SQL Server"""
-    mailto = ["sgilmour@idealtridon.com"]  # storing the receiver's mail id
-    fpath = "\\Inetpub\\ftproot\\" + folder_name + "\\"
-    check_dir(fpath)
-    fpath_bad = "\\Inetpub\\ftproot\\" + folder_name + "_bad\\"
-    check_dir(fpath_bad)
-    fpath_arc = "\\Inetpub\\ftproot\\" + folder_name + "_archive\\"
-    check_dir(fpath_arc)
-    fpath_obs = "\\Inetpub\\ftproot\\obs_data\\"
-    check_dir(fpath_obs)
-    # Initialize DataFrames
-    df1 = pd.DataFrame(columns=dtype_dict.keys())
-    df1 = df1.astype(dtype_dict)
-    df3 = df1.astype(dtype_dict)
-    filename = ''
-    # Get Files From Server
-    filelist = os.listdir(fpath)
-    # If no files, exit
-    if len(filelist) == 0:
-        print('Nothing to Process in Folder ' + folder_name)
+    """Load Operator Production Data into the SQL Server."""
+    folder_paths = {
+        "main": f"{BASE_PATH}{folder_name}\\",
+        "bad": f"{BASE_PATH}{folder_name}_bad\\",
+        "archive": f"{BASE_PATH}{folder_name}_archive\\",
+        "obs": f"{BASE_PATH}obs_data\\",
+    }
+    # Ensure necessary directories exist
+    for path in folder_paths.values():
+        check_dir(path)
+
+    # Initialize an empty DataFrame with correct dtypes
+    processed_data = pd.DataFrame(columns=dtype_dict.keys()).astype(dtype_dict)
+
+    # Get file list from the directory
+    file_list = os.listdir(folder_paths["main"])
+    if not file_list:
+        print(f'Nothing to Process in Folder {folder_name}')
         return
     else:
-        print('Processing Folder ' + folder_name)
-    for filename in filelist:
-        # Get rid of Auto Packer and Micro files
-        if ((filename[:1] == '2') or (filename[:1] == '9')) and len(filename) > 10:
-            shutil.move(fpath + filename, fpath_obs + filename)
-            print('File ' + filename + ' Moved to ' + fpath_obs)
+        print(f'Processing Folder {folder_name}')
+
+    # Process each file
+    for file_name in file_list:
+        if _is_obsolete_file(file_name):
+            _move_file(file_name, folder_paths["main"], folder_paths["obs"], "Obsolete Data")
             continue
+
         try:
-            print('Table ' + table_name + ' is being processed ' + filename)
-            df = pd.read_csv(fpath + filename, names=dtype_dict.keys())
-            # Filter for Bad Data
-            if table_name == 'MachProd':
-                df3 = (df['Part'] != 'None') & (df['Start'] != '0') & (df['Stop'] != '0')
-            elif table_name == 'MachShifts':
-                valid = common_funcs.check_for_int(df.Eff) and common_funcs.check_for_int(df.NetEff) and \
-                        common_funcs.check_for_int(df.Util)
-                if not valid:
-                    df.Eff = 0.00
-                    df.NetEff = 0.00
-                    df.Util = 0.00
-                df['Operator'].fillna("Unknown", inplace=True)
-                df['Operator'].replace(to_replace="Please login", value='Unknown', inplace=True)
-                df3 = (df['ProdCnt'] > 0) & (df['ShiftDate'] != '0') & (df['ShiftRecDate'] != '0') & (df['Shift'] > 0)
-            elif table_name == 'MachJobs':
-                df['SetupMan'].fillna("Unknown", inplace=True)
-                df['CoType'].fillna("No Changes", inplace=True)
-                df['SetupMan'].replace(to_replace="Please login", value='Unknown', inplace=True)
-                df3 = (df['JobCnt'] > 0) & (df['JobComp'] != '0') & (df['JobStart'] != '0')
-            elif table_name == 'tblStrut_Exp':
-                df3 = df['RecDate'] != '0'
-            elif table_name == 'AcmRuntime':
-                df3 = df['RecDate'] != '0'
-            elif table_name == 'opprod':
-                valid = common_funcs.check_for_int(df.eff) and common_funcs.check_for_int(df.neteff) and \
-                        common_funcs.check_for_int(df.util)
-                if not valid:
-                    df.eff = 0.00
-                    df.neteff = 0.00
-                    df.util = 0.00
-                df3 = (df['login'] != '0')
-            df = df.loc[df3]
-            df = df.astype(dtype_dict)
-            df1 = pd.concat([df1, df])
+            print(f'Table {table_name} is being processed {file_name}')
+            raw_data = pd.read_csv(f"{folder_paths['main']}{file_name}", names=dtype_dict.keys())
+            filtered_data = _filter_data(raw_data, table_name)
+            if not filtered_data.empty:
+                processed_data = pd.concat([processed_data, filtered_data.astype(dtype_dict)])
         except (ValueError, Exception) as e:
-            prob_desc = filename + ' Had A Problem Loading Into DataFrame: Moving to ' + fpath_bad
-            prob_detail = '<b>Problem Detail: </b><br>' + str(e)
-            message_header = 'Problem With <i>' + filename + '</i> :'
-            print(prob_desc)
-            print(prob_detail)
-            common_funcs.build_email(prob_detail, prob_desc, message_header, mailto)
-            shutil.move(fpath + filename, fpath_bad + filename)
+            _handle_file_error(e, file_name, folder_paths, "DataFrame Loading Error")
         else:
-            # Copy Data File to Archive Folder
-            shutil.move(fpath + filename, fpath_arc + filename)
-            print(filename + ' Loaded Into DataFrame')
-    df1.reset_index(drop=True, inplace=True)
+            _move_file(file_name, folder_paths["main"], folder_paths["archive"], "Archived")
+
+    # Reset index for the processed DataFrame
+    processed_data.reset_index(drop=True, inplace=True)
+
+    # Load data into SQL Server
     try:
-        # Send Data to SQL Server
-        df1.to_sql(table_name, engine, schema='production', if_exists='append', index=False)
+        processed_data.to_sql(table_name, engine, schema='production', if_exists='append', index=False)
     except sqlalchemy.exc.IntegrityError as e:
-        prob_desc = 'Problem Sending Data to SQL Server Table (Duplicate Primary Key)'
-        prob_detail = '<b>Problem Detail: </b><br>' + str(e)
-        message_header = 'Problem With <i>' + filename + '</i> :'
-        print(prob_desc)
-        print(prob_detail)
-        common_funcs.build_email2(prob_detail, prob_desc, message_header, mailto)
+        _handle_sql_error(e, "Duplicate Primary Key")
     except Exception as e:
-        prob_desc = 'Problem Sending Data to SQL Server Table (Other)'
-        prob_detail = '<b>Problem Detail: </b><br>' + str(e)
-        message_header = 'Problem With <i>' + filename + '</i> :'
-        print(prob_desc)
-        print(prob_detail)
-        common_funcs.build_email(prob_detail, prob_desc, message_header, mailto)
+        _handle_sql_error(e, "Other SQL Error")
     else:
-        msg = 'SQL Server Table ' + table_name + ' Updated'
+        msg = f"SQL Server Table {table_name} Updated"
         print(msg)
         logger.info(msg)
+
 
 
 def load_mach_prod(fpath, size):
@@ -480,136 +535,206 @@ def set_cam_files():
 
 
 # TODO: Remove when use of load_db proves out
+def process_production_file(file_path, file_name, cursor, db_connection, table_name, bad_file_path, expected_size):
+    """Process a single production file and insert its data into the database."""
+    full_path = os.path.join(file_path, file_name)
+    with open(full_path, 'r') as input_file:
+        parser = csv.reader(input_file)
+        row = next(parser)
+
+    print(f"Processing {table_name} Production File: {full_path}")
+    if len(row) >= expected_size:
+        sql = f"""INSERT INTO {table_name} 
+                  (Datestamp,Machine,RecDate,hr0,hr1,hr2,hr3,hr4,hr5,hr6,hr7,hr8,hr9,
+                   hr10,hr11,hr12,hr13,hr14,hr15,hr16,hr17,hr18,hr19,hr20,hr21,hr22,hr23)
+                  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);"""
+        rows = tuple(row[:27])  # Safely limit rows to the first 27 elements
+        try:
+            cursor.execute(sql, rows)
+            db_connection.commit()
+        except pyodbc.IntegrityError:
+            handle_error("Duplicate Primary Key", row[0], file_name, bad_file_path, full_path, table_name)
+        except pyodbc.Error:
+            handle_error("Could not load", row[0], file_name, bad_file_path, full_path, table_name)
+        else:
+            os.remove(full_path)
+            print(f"{row[1]} {file_name} Entered into {table_name} production database")
+
+
+def handle_error(message, key, file_name, bad_file_path, full_path, table_name):
+    """Handle errors by logging and moving bad files."""
+    full_message = f"{message} {key}. File = {file_name}"
+    logger.error(f"{full_message} [process_production_file]")
+    print(full_message)
+    BAD_FILE_LIST.append(f"{table_name.lower()}_{file_name}")
+    movefile(full_path, os.path.join(bad_file_path, file_name))
+
+
+def load_production_data(fpath, size, table_name, bad_file_path, file_type):
+    """Load Hourly Production Data into SQL Server."""
+    db_connection = pyodbc.connect(CONNECTION_STRING)
+    cursor = db_connection.cursor()
+
+    check_file_size(fpath, file_type)  # Move zero size files to other directory
+    file_list = os.listdir(fpath)
+
+    for file_name in file_list:
+        process_production_file(fpath, file_name, cursor, db_connection, table_name, bad_file_path, size)
+
+    db_connection.close()
+
+
+# Updated functions now use the generic `load_production_data`
 def load_strut_production(fpath, size):
-    """Load Hourly Strut Production Data into SQL Server."""
-    strutbadfilepath = "\\Inetpub\\ftproot\\Wesanco\\Badfiles\\"
-    dbcnxn = pyodbc.connect(CONNECTION_STRING)
-    cursor = dbcnxn.cursor()
-    # Loads shift data to SQL server
-    check_file_size(fpath, "Strut")  # Move zero size files to other directory
-    filelist = os.listdir(fpath)
-    machlist = []
-    for filename in filelist:
-        inputfile = open(fpath + filename)
-        parser = csv.reader(inputfile)
-        row = next(parser)
-        machlist.append(row[1])
-        inputfile.close()
-        print("Processing Strut Production File: " + fpath + filename)
-        if len(row) >= size:
-            sql = """INSERT INTO production.tblStrut (Datestamp,Machine,RecDate,hr0,hr1,hr2,hr3,hr4,hr5,hr6,hr7,hr8,hr9,
-                                 hr10,hr11,hr12,hr13,hr14,hr15,hr16,hr17,hr18,hr19,hr20,hr21,hr22,hr23)
-                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);"""
-            rows = (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9],
-                    row[10], row[11], row[12], row[13], row[14], row[15], row[16], row[17], row[18],
-                    row[19], row[20], row[21], row[22], row[23], row[24], row[25], row[26])
-            try:
-                cursor.execute(sql, rows)
-                dbcnxn.commit()
-            except pyodbc.IntegrityError:
-                msg = "Duplicate Primary Key " + str(row[0]) + "File = " + filename
-                logger.error(msg + " [" + load_strut_production.__name__ + "]")
-                print(msg)
-                BAD_FILE_LIST.append("strut_" + filename)
-                movefile(fpath + filename, strutbadfilepath + filename)
-            except pyodbc.Error:
-                msg = "could not load " + filename
-                logger.error(msg + " [" + load_strut_production.__name__ + "]")
-                print(msg)
-                BAD_FILE_LIST.append("strut_" + filename)
-                movefile(fpath + filename, strutbadfilepath + filename)
-            else:
-                # os.remove(fpath + filename)
-                print(row[1] + filename + " Entered into strut production database")
-    dbcnxn.close()
-    return
+    load_production_data(
+        fpath=fpath,
+        size=size,
+        table_name="production.tblStrut",
+        bad_file_path="\\Inetpub\\ftproot\\Wesanco\\Badfiles\\",
+        file_type="Strut"
+    )
 
-
-# TODO: Add to Pandas Data Model
 def load_fastlok_production(fpath, size):
-    """Load Hourly FastLok Production Data into SQL Server."""
-    fastlokbadfilepath = "\\Inetpub\\ftproot\\FastLok\\Badfiles\\"
-    dbcnxn = pyodbc.connect(CONNECTION_STRING)
-    cursor = dbcnxn.cursor()
-    # Loads shift data to SQL server
-    check_file_size(fpath, "FastLok")  # Move zero size files to other directory
-    filelist = os.listdir(fpath)
-    machlist = []
-    for filename in filelist:
-        inputfile = open(fpath + filename)
-        parser = csv.reader(inputfile)
-        row = next(parser)
-        machlist.append(row[1])
-        inputfile.close()
-        print("Processing FastLok Production File: " + fpath + filename)
-        if len(row) >= size:
-            sql = """INSERT INTO production.tblFastLok (Datestamp,Machine,RecDate,hr0,hr1,hr2,hr3,hr4,hr5,hr6,
-                                 hr7,hr8,hr9,hr10,hr11,hr12,hr13,hr14,hr15,hr16,hr17,hr18,hr19,hr20,hr21,hr22,hr23)
-                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);"""
-            rows = (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9],
-                    row[10], row[11], row[12], row[13], row[14], row[15], row[16], row[17], row[18],
-                    row[19], row[20], row[21], row[22], row[23], row[24], row[25], row[26])
-            try:
-                cursor.execute(sql, rows)
-                dbcnxn.commit()
-            except pyodbc.IntegrityError:
-                msg = "Duplicate Primary Key " + str(row[0]) + "File = " + filename
-                logger.error(msg + " [" + load_fastlok_production.__name__ + "]")
-                print(msg)
-                BAD_FILE_LIST.append("fastlok_" + filename)
-                movefile(fpath + filename, fastlokbadfilepath + filename)
-            except pyodbc.Error:
-                msg = "could not load " + filename
-                logger.error(msg + " [" + load_fastlok_production.__name__ + "]")
-                print(msg)
-                BAD_FILE_LIST.append("fastlok_" + filename)
-                movefile(fpath + filename, fastlokbadfilepath + filename)
-            else:
-                os.remove(fpath + filename)
-                print(row[1] + filename + " Entered into FastLok production database")
-    dbcnxn.close()
-    return
+    load_production_data(
+        fpath=fpath,
+        size=size,
+        table_name="production.tblFastLok",
+        bad_file_path="\\Inetpub\\ftproot\\FastLok\\Badfiles\\",
+        file_type="FastLok"
+    )
+
+# def load_strut_production(fpath, size):
+#     """Load Hourly Strut Production Data into SQL Server."""
+#     strutbadfilepath = "\\Inetpub\\ftproot\\Wesanco\\Badfiles\\"
+#     dbcnxn = pyodbc.connect(CONNECTION_STRING)
+#     cursor = dbcnxn.cursor()
+#     # Loads shift data to SQL server
+#     check_file_size(fpath, "Strut")  # Move zero size files to other directory
+#     filelist = os.listdir(fpath)
+#     machlist = []
+#     for filename in filelist:
+#         inputfile = open(fpath + filename)
+#         parser = csv.reader(inputfile)
+#         row = next(parser)
+#         machlist.append(row[1])
+#         inputfile.close()
+#         print("Processing Strut Production File: " + fpath + filename)
+#         if len(row) >= size:
+#             sql = """INSERT INTO production.tblStrut (Datestamp,Machine,RecDate,hr0,hr1,hr2,hr3,hr4,hr5,hr6,hr7,hr8,hr9,
+#                                  hr10,hr11,hr12,hr13,hr14,hr15,hr16,hr17,hr18,hr19,hr20,hr21,hr22,hr23)
+#                      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);"""
+#             rows = (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9],
+#                     row[10], row[11], row[12], row[13], row[14], row[15], row[16], row[17], row[18],
+#                     row[19], row[20], row[21], row[22], row[23], row[24], row[25], row[26])
+#             try:
+#                 cursor.execute(sql, rows)
+#                 dbcnxn.commit()
+#             except pyodbc.IntegrityError:
+#                 msg = "Duplicate Primary Key " + str(row[0]) + "File = " + filename
+#                 logger.error(msg + " [" + load_strut_production.__name__ + "]")
+#                 print(msg)
+#                 BAD_FILE_LIST.append("strut_" + filename)
+#                 movefile(fpath + filename, strutbadfilepath + filename)
+#             except pyodbc.Error:
+#                 msg = "could not load " + filename
+#                 logger.error(msg + " [" + load_strut_production.__name__ + "]")
+#                 print(msg)
+#                 BAD_FILE_LIST.append("strut_" + filename)
+#                 movefile(fpath + filename, strutbadfilepath + filename)
+#             else:
+#                 # os.remove(fpath + filename)
+#                 print(row[1] + filename + " Entered into strut production database")
+#     dbcnxn.close()
+#     return
+#
+#
+# # TODO: Add to Pandas Data Model
+# def load_fastlok_production(fpath, size):
+#     """Load Hourly FastLok Production Data into SQL Server."""
+#     fastlokbadfilepath = "\\Inetpub\\ftproot\\FastLok\\Badfiles\\"
+#     dbcnxn = pyodbc.connect(CONNECTION_STRING)
+#     cursor = dbcnxn.cursor()
+#     # Loads shift data to SQL server
+#     check_file_size(fpath, "FastLok")  # Move zero size files to other directory
+#     filelist = os.listdir(fpath)
+#     machlist = []
+#     for filename in filelist:
+#         inputfile = open(fpath + filename)
+#         parser = csv.reader(inputfile)
+#         row = next(parser)
+#         machlist.append(row[1])
+#         inputfile.close()
+#         print("Processing FastLok Production File: " + fpath + filename)
+#         if len(row) >= size:
+#             sql = """INSERT INTO production.tblFastLok (Datestamp,Machine,RecDate,hr0,hr1,hr2,hr3,hr4,hr5,hr6,
+#                                  hr7,hr8,hr9,hr10,hr11,hr12,hr13,hr14,hr15,hr16,hr17,hr18,hr19,hr20,hr21,hr22,hr23)
+#                      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);"""
+#             rows = (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9],
+#                     row[10], row[11], row[12], row[13], row[14], row[15], row[16], row[17], row[18],
+#                     row[19], row[20], row[21], row[22], row[23], row[24], row[25], row[26])
+#             try:
+#                 cursor.execute(sql, rows)
+#                 dbcnxn.commit()
+#             except pyodbc.IntegrityError:
+#                 msg = "Duplicate Primary Key " + str(row[0]) + "File = " + filename
+#                 logger.error(msg + " [" + load_fastlok_production.__name__ + "]")
+#                 print(msg)
+#                 BAD_FILE_LIST.append("fastlok_" + filename)
+#                 movefile(fpath + filename, fastlokbadfilepath + filename)
+#             except pyodbc.Error:
+#                 msg = "could not load " + filename
+#                 logger.error(msg + " [" + load_fastlok_production.__name__ + "]")
+#                 print(msg)
+#                 BAD_FILE_LIST.append("fastlok_" + filename)
+#                 movefile(fpath + filename, fastlokbadfilepath + filename)
+#             else:
+#                 os.remove(fpath + filename)
+#                 print(row[1] + filename + " Entered into FastLok production database")
+#     dbcnxn.close()
+#     return
 
 
 def get_uptime():
     today = date.today()
     yesterday = today - timedelta(days=1)
     strsql = """SELECT AcmRuntime.Machine,
-                ROUND(
-                CAST((production.AcmRuntime.hr0 + production.AcmRuntime.hr1 + production.AcmRuntime.hr2 + 
-                production.AcmRuntime.hr3 + production.AcmRuntime.hr4 + production.AcmRuntime.hr5 + 
-                production.AcmRuntime.hr6 + production.AcmRuntime.hr7 + production.AcmRuntime.hr8 + 
-                production.AcmRuntime.hr9 + production.AcmRuntime.hr10 + production.AcmRuntime.hr11 + 
-                production.AcmRuntime.hr12 + production.AcmRuntime.hr13 + production.AcmRuntime.hr14 + 
-                production.AcmRuntime.hr15 + production.AcmRuntime.hr16 + production.AcmRuntime.hr17 + 
-                production.AcmRuntime.hr18 + production.AcmRuntime.hr19 + production.AcmRuntime.hr20 + 
-                production.AcmRuntime.hr21 + production.AcmRuntime.hr22 + production.AcmRuntime.hr23) AS FLOAT)/864,2)
-                AS Uptime
-                FROM [production].[AcmRuntime]            
-                WHERE
-                    AcmRuntime.RecDate >= '%s'
-                ;""" % yesterday
-    df = pd.read_sql(strsql, engine)
-    return df.sort_values('Machine')
+                    ROUND(
+                    CAST((production.AcmRuntime.hr0 + production.AcmRuntime.hr1 + production.AcmRuntime.hr2 +
+                    production.AcmRuntime.hr3 + production.AcmRuntime.hr4 + production.AcmRuntime.hr5 +
+                    production.AcmRuntime.hr6 + production.AcmRuntime.hr7 + production.AcmRuntime.hr8 +
+                    production.AcmRuntime.hr9 + production.AcmRuntime.hr10 + production.AcmRuntime.hr11 +
+                    production.AcmRuntime.hr12 + production.AcmRuntime.hr13 + production.AcmRuntime.hr14 +
+                    production.AcmRuntime.hr15 + production.AcmRuntime.hr16 + production.AcmRuntime.hr17 +
+                    production.AcmRuntime.hr18 + production.AcmRuntime.hr19 + production.AcmRuntime.hr20 +
+                    production.AcmRuntime.hr21 + production.AcmRuntime.hr22 + production.AcmRuntime.hr23) AS FLOAT)/864,2)
+                    AS Uptime
+                    FROM [production].[AcmRuntime]
+                    WHERE
+                        AcmRuntime.RecDate >= '%s'
+                    ;""" % yesterday
+    with engine.connect() as connection:
+        df1 = pd.read_sql(text(strsql), connection)
+    return df1.sort_values('Machine')
 
 
 def uptime_rpt():
     mach_data = get_uptime()
-    mailto = ["elab@idealtridon.com", "bbrackman@idealtridon.com",
-              "thobbs@idealtridon.com", "mpriddy@idealtridon.com"]
+    # mailto = ["elab@idealtridon.com", "bbrackman@idealtridon.com",
+    #           "thobbs@idealtridon.com", "mpriddy@idealtridon.com"]
+    mailto = ["sgilmour@idealtridon.com"]
     # For Debug
     # mailto = ["sgilmour@idealtridon.com"]
 
     # List of Active Machines that are supposed to submit production data
-    machs = ('ACM350', 'ACM351', 'ACM353', 'ACM354', 'ACM355', 'ACM357', 'ACM361', 'ACM362',
+    machs = ('ACM350', 'ACM352', 'ACM353', 'ACM354', 'ACM355', 'ACM357', 'ACM358', 'ACM361', 'ACM362',
              'ACM363', 'ACM365', 'ACM366', 'ACM369', 'ACM372', 'ACM374', 'ACM375',
-             'ACM376', 'LACM381', 'LACM382', 'LACM383', 'LACM384', 'LACM385', 'LACM386',
-             'LACM387', 'LACM388', 'LACM390', 'LACM391', 'LACM393', 'SLACM389', 'SLACM392')
+             'ACM376', 'LACM381', 'LACM382', 'LACM383', 'LACM384', 'LACM386', 'LACM387',
+             'LACM388', 'LACM390', 'LACM391', 'LACM393', 'LACM394', 'SLACM389', 'SLACM392')
 
     missing_mach = set(machs).difference(mach_data['Machine'])
     data = build_table(mach_data[['Machine', 'Uptime']], 'blue_light')
     yesterday = date.today() - timedelta(days=1)
-    logger.info('Sending Email in uptime report')
+    # logger.info('Sending Email in uptime report')
     if len(missing_mach) == 1:
         data = data + '<br><br><i>Machine That Did Not Check In: ' + ' '.join(missing_mach) + '</i>'
     if len(missing_mach) > 1:
@@ -625,7 +750,6 @@ def main():
     thickpath = "\\Inetpub\\ftproot\\acmtests\\Thickness\\"
     strut1path = "\\Inetpub\\ftproot\\Wesanco\\Weld1\\"
     strut2path = "\\Inetpub\\ftproot\\Wesanco\\Weld2\\"
-    # strut3path = "\\Inetpub\\ftproot\\Wesanco\\Weld3\\"
     strut5path = "\\Inetpub\\ftproot\\Wesanco\\Weld4\\"
     strut4path = "\\Inetpub\\ftproot\\FlaStrut\\Weld1\\"
     fastlok1path = "\\Inetpub\\ftproot\\FastLok\\FL2874\\"
@@ -642,7 +766,7 @@ def main():
     # Collect Machine Production data
     logger.info('Running MachProd')
     dtypes = {"ID": 'int64', "Part": 'object', "Operator": 'object', "Machine": 'category', "Start": 'datetime64[ns]',
-              "Stop": 'datetime64[ns]', "Shift": 'int', "Total": 'int', "PPM": 'int', "CO": 'int'}
+              "Stop": 'datetime64[ns]', "Shift": 'int', "Total": 'int', "CO": 'int', "PPM": 'int'}
     load_db('machprod', 'MachProd', dtypes)
 
     # Collect Shift Data
@@ -678,8 +802,6 @@ def main():
     load_strut_production(strut1path, 20)
     logger.info('Running Wesanco Strut Welder 2')
     load_strut_production(strut2path, 20)
-    # logger.info('Running Wesanco Strut Welder 3')
-    # load_strut_production(strut3path, 20)
     logger.info('Running Wesanco Strut Welder 4')
     load_strut_production(strut5path, 20)
     logger.info('Running Florida Strut Welder 1')
