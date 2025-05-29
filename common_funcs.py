@@ -8,7 +8,6 @@ import smtplib
 
 def check_for_int(data):
     """Test if argument can be an integer"""
-    print(data)
     try:
         int(data)
         return True
