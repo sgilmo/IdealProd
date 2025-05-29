@@ -265,7 +265,7 @@ def get_filemaker_items():
             SELECT Ourpart,"Band A Part Number", "Housing A Part Number",
                 "Screw Part Number", "Band Feed from Band data",
                 "Ship Diam Max QA Alternate", "Ship Diam Min", "Hex Size", "Band_Thickness", "Band_Width", 
-                "CameraInspectionRequired", "ScrDrvChk"
+                "CameraInspectionRequired", "ScrDrvChk", "Cutout1"
             FROM tbl8Tridon 
             WHERE  ("Band Feed from Band data" IS NOT NULL)
                 AND (Ourpart IS NOT NULL) AND (RIGHT(Ourpart,1) <> '\r')
@@ -323,8 +323,8 @@ def update_db(dbase):
         print("Delete Time = " + str(round((timer() - start), 3)) + " sec")
     # Load part data onto SQL server
     sql = """INSERT INTO production.parts (PartNumber,Band,Housing,Screw,Feed,
-                    DiaMax,DiaMin,HexSz,BandThickness,BandWidth,CamInspect,ScrDrvChk)
-                    VALUES (?,?,?,?,?,?,?,?,?,round(?,3),?,?);"""
+                    DiaMax,DiaMin,HexSz,BandThickness,BandWidth,CamInspect,ScrDrvChk,Cutout1)
+                    VALUES (?,?,?,?,?,?,?,?,?,round(?,3),?,?,?);"""
     try:
         start = timer()
         cursor.executemany(sql, dbase)
@@ -381,6 +381,8 @@ def cleandata(row):
         row[5] = '0.00'
     if row[6] == "":
         row[6] = '0.00'
+    if row[12] is None:
+        row[12] = '0.00'
     # Get rid of bad part number entry
     row[0] = row[0].replace('\xa0', '')
     # Make sure Cam Inspect and Screwdriver Check field are all caps
