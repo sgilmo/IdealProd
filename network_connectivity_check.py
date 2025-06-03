@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Network connectivity checker for multiple IP addresses."""
 
-import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime
@@ -13,7 +12,7 @@ import platform
 import common_funcs
 
 failed_devices = []
-EMAIL_RECIPIENTS = ["sgilmour@idealtridon.com"]
+EMAIL_RECIPIENTS = ["elab@idealtridon.com"]
 
 # Configure logging
 logging.basicConfig(
@@ -43,7 +42,7 @@ class NetworkDevice:
 class NetworkChecker:
     """Handles network connectivity checking operations."""
 
-    def __init__(self, config_file: str = "network_devices.json"):
+    def __init__(self, config_file: str = "c:\PycharmProjects\IdealProd\\network_devices.json"):
         self.config_file = Path(config_file)
         self.devices: List[NetworkDevice] = []
         self.ping_count = 1
@@ -78,7 +77,7 @@ class NetworkChecker:
             output, error = process.communicate()
 
             if process.returncode == 0:
-                if "Lost = 0 " in output:
+                if "bytes=32 " in output:
                     # Extract response time if available
                     try:
                         time_str = output.split("time=")[1].split()[0].replace("ms", "")
@@ -135,13 +134,13 @@ class NetworkChecker:
             print(f"{status}: {len(status_groups[status])} devices")
 
 
-def notify_failed_devices(failed_devices) -> None:
+def notify_failed_devices(failed) -> None:
     """Send notification about failed devices."""
-    if not failed_devices:
+    if not failed:
         return
 
-    print(f"{len(failed_devices)} Bad Connections {failed_devices}")
-    failure_report = "<br>".join(str(device) for device in failed_devices)
+    print(f"{len(failed)} Bad Connections {failed}")
+    failure_report = "<br>".join(str(device) for device in failed)
 
     common_funcs.build_email2(
         body_data=failure_report,
@@ -156,11 +155,11 @@ def main():
         checker = NetworkChecker()
         checker.check_all_devices()
         checker.print_results()
-        notify_failed_devices(failed_devices)
         # Get offline devices
         offline_devices = checker.get_offline_devices()
         if offline_devices:
             logger.warning(f"Found {len(offline_devices)} offline devices")
+            notify_failed_devices(failed_devices)
             # Here you could add email notification or other alerts
         else:
             logger.info("All devices are online")
@@ -168,7 +167,6 @@ def main():
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         return 1
-
     return 0
 
 if __name__ == "__main__":
