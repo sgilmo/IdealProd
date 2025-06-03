@@ -34,8 +34,10 @@ DEST_NODE_NUM = 0
 DEST_UNIT_ADDR = 0
 
 # Memory area constants
-DM_ADDRESS = 2000
-DM_VALUE = 0
+HR_ADDRESS = 1
+HR_BIT = 2
+# Chopper Enabled HR_VALUE = 0, Disabled HR_VALUE = 1
+HR_VALUE = 0
 
 
 def main():
@@ -60,14 +62,14 @@ def main():
                     logger.error(f"Failed to connect to {key}: Error code {hex(ret1)}")
                     failed_machines.append(key)
                     continue
-                
-                ret2 = fins.write_mem_area(datadef.DM_WORD, DM_ADDRESS, 0, 1, (DM_VALUE, datadef.USHORT))
+
+                ret2 = fins.write_mem_area(datadef.HR_BIT, HR_ADDRESS, HR_BIT, 1, (HR_VALUE, datadef.BIT))
                 
                 if ret2 != 0:
                     logger.error(f"Failed to write to {key} memory: Error code {hex(ret2)}")
                     failed_machines.append(key)
                 else:
-                    logger.info(f"Successfully set {key} DM{DM_ADDRESS} to {DM_VALUE}")
+                    logger.info(f"Successfully set {key} DM{HR_ADDRESS} to {HR_VALUE}")
                 
             except Exception as e:
                 logger.error(f"Error communicating with {key}: {str(e)}")
