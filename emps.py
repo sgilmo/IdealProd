@@ -1,46 +1,79 @@
-#!/usr/bin/env python
-
-"""Get employee information from AS400 and create new file emps.csv.
-
-and put it in the ftproot on TN-DATACOLLECT
+# !/usr/bin/env python
 """
-import pyodbc
+Get employee information from AS400, update SQL Server database,
+and create a CSV file in the FTP root directory.
+"""
 import csv
+from typing import List
 import as400
 import sql_funcs
 
-CONNECTION = """
-Driver={iSeries Access ODBC Driver};
-system=10.143.12.10;
-Database=PROD;
-UID=SMY;
-PWD=SMY;
-"""
+# Constants
+OUTPUT_PATH = "\\Inetpub\\ftproot\\"
+OUTPUT_FILENAME = "emps.csv"
+NO_LOGIN_USER = ['0000', 'Please Log In', 'DEF']
+ENGINEERING_IDS = ['9999', '9107', '1656', '1472', '1626', '1351', '1579', '2241']
 
-emppath = "\\Inetpub\\ftproot\\"
-englogin = ['9999', 'Elmer J Fudd', 'ENG']
-nologin = ['0000', 'Please Log In', 'DEF']
-eng = ['9999', '1208', '9107', '1656', '1472', '1626', '1351', '1579']
 
-cnxn = pyodbc.connect(CONNECTION)
-cursor = cnxn.cursor()
+def fetch_employee_data() -> List[List]:
+    """
+    Fetch employee data from AS400 and convert tuples to lists.
 
-sql = """SELECT STRIP(EMP_CLOCK_NUMBER) As Clock,
-                CONCAT(CONCAT(STRIP(EMP_FIRST_NAME), ' '),
-                STRIP(EMP_LAST_NAME)) As Name,
-                STRIP(EMP_POSITION_CODE) As Code
-        FROM PROD.FPCLCKPAY
-        WHERE (EMP_LOCATION = 09) AND (EMP_LAST_NAME <> 'TEMP') AND (EMP_SHIFT_TYPE = 'A')
-        ORDER BY EMP_CLOCK_NUMBER"""
+    Returns:
+        List[List]: List of employee data records
+    """
+    emp_tuple = as400.get_emps()
+    return [list(item) for item in emp_tuple]
 
-cursor.execute(sql)
-file1 = [nologin]
-for row in cursor:
-    if row[0] in eng:
-        row[2] = 'ENG'
-    file1.append(row)
-outputfile = open(emppath + "emps.csv", "w", newline='')
-out = csv.writer(outputfile, delimiter=',', quoting=csv.QUOTE_NONE, escapechar='\\')
-out.writerows(file1)
-outputfile.close()
-sql_funcs.update_emps(as400.get_emps())
+
+def update_sql_database(employee_data: List[List]) -> None:
+    """
+    Update SQL Server database with employee data.
+
+    Args:
+        employee_data: List of employee records
+    """
+    sql_funcs.update_emps(employee_data)
+
+
+def create_csv_file(employee_data: List[List], filepath: str) -> None:
+    """
+    Create a CSV file with employee data.
+
+    Args:
+        employee_data: List of employee records
+        filepath: Path where CSV file will be saved
+    """
+    # Add no-login user to the data for export
+    data_for_export = employee_data.copy()
+    data_for_export.append(NO_LOGIN_USER)
+    #print(data_for_export)
+
+    with open(filepath, "w", newline='') as output_file:
+        csv_writer = csv.writer(
+            output_file,
+            delimiter=',',
+            quoting=csv.QUOTE_NONE,
+            escapechar='\\'
+        )
+        csv_writer.writerows(data_for_export)
+
+
+def main() -> None:
+    """
+    Main function to orchestrate the employee data processing.
+    """
+    # Get employee data from AS400
+    employee_data = fetch_employee_data()
+
+
+    # Update SQL Server database
+    update_sql_database(employee_data)
+
+    # Create CSV file for export to machines
+    output_path = f"{OUTPUT_PATH}{OUTPUT_FILENAME}"
+    create_csv_file(employee_data, output_path)
+
+
+if __name__ == "__main__":
+    main()
