@@ -1,6 +1,6 @@
 # !/usr/bin/env python
 """
-Get employee information from AS400, update SQL Server database,
+Get employee information from AS400, update SQL Server database with that data,
 and create a CSV file in the FTP root directory.
 """
 import csv
@@ -12,7 +12,6 @@ import sql_funcs
 OUTPUT_PATH = "\\Inetpub\\ftproot\\"
 OUTPUT_FILENAME = "emps.csv"
 NO_LOGIN_USER = ['0000', 'Please Log In', 'DEF']
-ENGINEERING_IDS = ['9999', '9107', '1656', '1472', '1626', '1351', '1579', '2241']
 
 
 def fetch_employee_data() -> List[List]:
@@ -47,7 +46,6 @@ def create_csv_file(employee_data: List[List], filepath: str) -> None:
     # Add no-login user to the data for export
     data_for_export = employee_data.copy()
     data_for_export.append(NO_LOGIN_USER)
-    #print(data_for_export)
 
     with open(filepath, "w", newline='') as output_file:
         csv_writer = csv.writer(
