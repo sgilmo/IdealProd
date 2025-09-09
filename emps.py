@@ -64,7 +64,6 @@ def main() -> None:
     # Get employee data from AS400
     employee_data = fetch_employee_data()
 
-
     # Update SQL Server database
     update_sql_database(employee_data)
 
