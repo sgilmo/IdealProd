@@ -89,7 +89,8 @@ def build_inv_list(result):
 
 def get_usage():
     """Get Spare Part Usage Data From iSeries AS400."""
-    tables = ('FPSPRUSAG', 'FPSPRUSAGC', 'FPSPRUSAGP')
+    # tables = ('FPSPRUSAG', 'FPSPRUSAGC', 'FPSPRUSAGP', 'FPSPRUSAGS')
+    tables = ['FPSPRUSAG'] #, 'FPSPRUSAGC')
     database = []
 
     with connect_to_db() as db_connection:
@@ -121,8 +122,7 @@ def get_usage():
 def get_emps():
     """Get Employees From iSeries AS400."""
     employees_eng_login = ['9999', 'ELMER J FUDD', 'ENG']
-    employees_lead_login = ['1208', 'WILE E COYOTE', 'ENG']
-    engineers = {'1208', '9107', '1656', '1472', '1626', '1351', '9999', '2126', '1496'}
+    engineers = {'1720', '1626', '9999', '2126', '1496', '2241'}
 
     query_sql = """
         SELECT STRIP(EMP_CLOCK_NUMBER) AS Clock,
@@ -139,7 +139,7 @@ def get_emps():
         with connect_to_db() as db_connection:
             cursor = db_connection.cursor()
             result = process_query_result(cursor, query_sql, "AS400 Employee Records")
-            result.extend([employees_eng_login, employees_lead_login])
+            result.extend([employees_eng_login])
             for row in result:
                 row[2] = 'ENG' if row[0] in engineers else 'DEF'
             return result
