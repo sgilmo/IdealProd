@@ -2,14 +2,15 @@ import pyodbc
 import os
 from urllib import parse
 from sqlalchemy import create_engine
+from sqlalchemy import text
 
 # Constants
 TRUNCATE_EMPLOYEE_TABLE = "TRUNCATE TABLE production.EMPLOYEE"
-TRUNCATE_TBLUSAGE = "TRUNCATE TABLE dbo.tblUsage"
+TRUNCATE_TBLUSAGE = "TRUNCATE TABLE dbo.tblUsage_temp"
 TRUNCATE_TBLINVENTORY = "TRUNCATE TABLE dbo.tblInventory"
 
 INSERT_EMPLOYEE = """INSERT INTO production.EMPLOYEE (ID, NAME, ROLE) VALUES (?, ?, ?)"""
-INSERT_USAGE = """INSERT INTO dbo.tblUsage (Date, Part, EngPart, Dept, Acct, Clock, Machine, Qty, Cost, SubTotal) 
+INSERT_USAGE = """INSERT INTO dbo.tblUsage_temp (Date, Part, EngPart, Dept, Acct, Clock, Machine, Qty, Cost, SubTotal) 
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
 INSERT_INVENTORY = """INSERT INTO dbo.tblInventory (PartNum, EngPartNum, Desc1, Desc2, Mfg, MfgPn, Cabinet, Drawer, 
                     OnHand, StandardCost, ReOrderDate, DeptUse, DeptPurch, ReOrderPt) 
@@ -84,3 +85,76 @@ def update_emps(data: list):
 def update_dbinv(data: list):
     """Update Spare Part Inventory Data."""
     update_database(data, TRUNCATE_TBLINVENTORY, INSERT_INVENTORY)
+
+
+def sync_usage(schema="dbo", src_table="tblUsage_temp", dst_table="tblUsage"):
+    """
+    Insert rows from schema.src_table into schema.dst_table that do not already exist in dst_table.
+    - Excludes Id, identity, computed, and rowversion/timestamp columns.
+    - Uses null-safe equality in NOT EXISTS to avoid duplicates with NULLs.
+    - Runs as a single set-based statement for performance.
+    Requires a configured SQLAlchemy engine.
+    """
+    with engine.begin() as conn:
+        # 1) Discover common, insertable columns in source and destination
+        cols_sql = text("""
+            WITH cols AS (
+                SELECT
+                    s.name  AS schema_name,
+                    t.name  AS table_name,
+                    c.name  AS column_name,
+                    c.column_id,
+                    c.is_identity,
+                    c.is_computed,
+                    ty.name AS type_name
+                FROM sys.schemas s
+                JOIN sys.tables t   ON t.schema_id = s.schema_id
+                JOIN sys.columns c  ON c.object_id = t.object_id
+                JOIN sys.types ty   ON ty.user_type_id = c.user_type_id
+                WHERE s.name = :schema
+                  AND t.name IN (:src, :dst)
+            )
+            SELECT d.column_name
+            FROM cols d
+            JOIN cols s
+              ON s.table_name = :src
+             AND d.table_name = :dst
+             AND s.schema_name = d.schema_name
+             AND s.column_name = d.column_name
+            WHERE d.schema_name = :schema
+              AND d.is_identity = 0
+              AND d.is_computed = 0
+              AND d.type_name NOT IN ('timestamp', 'rowversion')
+              AND d.column_name <> 'Id'
+            ORDER BY d.column_id
+        """)
+        insert_cols = list(conn.execute(
+            cols_sql,
+            {"schema": schema, "src": src_table, "dst": dst_table}
+        ).scalars())
+
+        if not insert_cols:
+            print("No insertable common columns found.")
+            return
+
+        # 2) Build the INSERT...SELECT...WHERE NOT EXISTS with NULL-safe comparisons
+        col_list = ", ".join(f"[{c}]" for c in insert_cols)
+        # d.[c] = t.[c] OR (d.[c] IS NULL AND t.[c] IS NULL)
+        where_parts = [f"(d.[{c}] = t.[{c}] OR (d.[{c}] IS NULL AND t.[{c}] IS NULL))"
+                       for c in insert_cols]
+        where_clause = " AND ".join(where_parts)
+
+        sql = f"""
+        INSERT INTO [{schema}].[{dst_table}] ({col_list})
+        SELECT {col_list}
+        FROM   [{schema}].[{src_table}] t
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM [{schema}].[{dst_table}] d WITH (HOLDLOCK, UPDLOCK)
+            WHERE {where_clause}
+        )
+        """
+
+        conn.exec_driver_sql(sql)
+        print(f"Sync complete: inserted new rows from {schema}.{src_table} into {schema}.{dst_table}.")
+
