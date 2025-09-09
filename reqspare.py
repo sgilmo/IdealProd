@@ -85,8 +85,8 @@ def make_req():
         df_reqspares['reqdate'] = datetime.now().date()
         # Add requestors to mailing list
         unique_reqby = df_reqspares['req_by'].drop_duplicates().tolist()
-        mail_list = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com", "jmoore@idealtridon.com",
-                     "rjobman@idealtridon.com", "nbolen@idealtridon.com"]
+        mail_list = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com",
+                     "rjobman@idealtridon.com", "mparman@idealtridon.com"]
         for item in unique_reqby:
             mail_list.append(item.lower() + "@idealtridon.com")
         print(mail_list)
