@@ -106,8 +106,8 @@ def check_mach_conn():
             statedata = "Network Connection to " + mach + " at " + ip + " is " + status
             badmachmsg.append(statedata)
             badmachlist.append(mach)
-    if len(badmachlist) > 0:
-        email_bad_machines(badmachmsg)
+    # if len(badmachlist) > 0:
+    #     email_bad_machines(badmachmsg)
     new_mach_dict = valid_ips(MACHINES, badmachlist)
     return new_mach_dict
 
