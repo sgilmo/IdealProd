@@ -19,7 +19,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('network_check.log'),
+        logging.FileHandler('c:\\PycharmProjects\\IdealProd\\network_check.log'),
         logging.StreamHandler()
     ]
 )
@@ -42,7 +42,7 @@ class NetworkDevice:
 class NetworkChecker:
     """Handles network connectivity checking operations."""
 
-    def __init__(self, config_file: str = "c:\PycharmProjects\IdealProd\\network_devices.json"):
+    def __init__(self, config_file: str = "c:\\PycharmProjects\\IdealProd\\network_devices.json"):
         self.config_file = Path(config_file)
         self.devices: List[NetworkDevice] = []
         self.ping_count = 1
