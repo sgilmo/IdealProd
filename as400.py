@@ -90,7 +90,7 @@ def build_inv_list(result):
 def get_usage():
     """Get Spare Part Usage Data From iSeries AS400."""
     # tables = ('FPSPRUSAG', 'FPSPRUSAGC', 'FPSPRUSAGP', 'FPSPRUSAGS')
-    tables = ['FPSPRUSAG'] #, 'FPSPRUSAGC')
+    tables = ['FPSPRUSAG']
     database = []
 
     with connect_to_db() as db_connection:
@@ -117,7 +117,37 @@ def get_usage():
                 database.append([str(x) for x in row])
     return database
 
+def get_prod():
+    """Get Production Data From iSeries AS400."""
+    tables = ['FPMGFILE']
+    database = []
 
+    with connect_to_db() as db_connection:
+        cursor = db_connection.cursor()
+        for table in tables:
+            query_sql = f"""
+                    SELECT PROD.{table}.IDEB_WEEK,
+                           STRIP(PROD.{table}.IDEB_DAY),
+                           PROD.{table}.IDEB_DEPT,
+                           PROD.{table}.IDEB_EMP_NBR,
+                           PROD.{table}.IDEB_SHIFT,
+                           STRIP(PROD.{table}.IDEB_MACH_NBR),
+                           STRIP(PROD.{table}.IDEB_PART),
+                           PROD.{table}.IDEB_TICKET_NBR,
+                           PROD.{table}.IDEB_TOTAL_QTY,
+                           PROD.{table}.IDEB_STANDARD,
+                           PROD.{table}.IDEB_ACTUAL_HOURS,
+                           PROD.{table}.IDEB_OVERTIME_HOURS,
+                           PROD.{table}.IDEB_MONTH
+                    FROM PROD.{table}
+                    WHERE PROD.{table}.IDEB_LOC = {FACILITY}
+                    AND PROD.{table}.IDEB_WEEK >= WEEK_ISO(CURRENT DATE) - 3
+                    AND PROD.{table}.IDEB_TOTAL_QTY > 0
+                """
+            result = process_query_result(cursor, query_sql, f"AS400 Usage Records from {table}")
+            for row in result:
+                database.append([str(x) for x in row])
+    return database
 
 def get_emps():
     """Get Employees From iSeries AS400."""
