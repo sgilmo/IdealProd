@@ -7,6 +7,7 @@ from sqlalchemy import text
 # Constants
 TRUNCATE_EMPLOYEE_TABLE = "TRUNCATE TABLE production.EMPLOYEE"
 TRUNCATE_TBLUSAGE = "TRUNCATE TABLE dbo.tblUsage_temp"
+TRUNCATE_TBLPROD = "TRUNCATE TABLE eng.tblProd_temp"
 TRUNCATE_TBLINVENTORY = "TRUNCATE TABLE dbo.tblInventory"
 
 INSERT_EMPLOYEE = """INSERT INTO production.EMPLOYEE (ID, NAME, ROLE) VALUES (?, ?, ?)"""
@@ -15,6 +16,10 @@ INSERT_USAGE = """INSERT INTO dbo.tblUsage_temp (Date, Part, EngPart, Dept, Acct
 INSERT_INVENTORY = """INSERT INTO dbo.tblInventory (PartNum, EngPartNum, Desc1, Desc2, Mfg, MfgPn, Cabinet, Drawer, 
                     OnHand, StandardCost, ReOrderDate, DeptUse, DeptPurch, ReOrderPt) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+INSERT_PROD = """INSERT INTO eng.tblProd_temp (IDEB_WEEK, IDEB_DAY, IDEB_DEPT, IDEB_EMP_NBR, IDEB_SHIFT, IDEB_MACH_NBR,
+                    IDEB_PART, IDEB_TICKET_NBR, IDEB_TOTAL_QTY, IDEB_STANDARD, IDEB_ACTUAL_HOURS, IDEB_OVERTIME_HOURS, 
+                    IDEB_MONTH) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
 
 # Database connection settings
 CONNECTION_STRING = (
@@ -75,6 +80,10 @@ def update_database(data: list, truncate_query: str, insert_query: str):
 def update_dbusage(data: list):
     """Update Spare Part Usage Data."""
     update_database(data, TRUNCATE_TBLUSAGE, INSERT_USAGE)
+
+def update_dbprod(data: list):
+    """Update Spare Part Usage Data."""
+    update_database(data, TRUNCATE_TBLPROD, INSERT_PROD)
 
 
 def update_emps(data: list):
