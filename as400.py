@@ -22,6 +22,7 @@ PWD=SMY;
 """
 TABLE_FPSPRMAST1 = "PROD.FPSPRMAST1"
 TABLE_FPSPRMAST2 = "PROD.FPSPRMAST2"
+TABLE_DMFMOMRID1 = "PROD.DMFMOMRID1"
 FACILITY = 9
 
 
@@ -44,9 +45,23 @@ def process_query_result(cursor, query_sql, description):
         return results
     except Exception as e:
         print(f"{description} Query Failed: {e}")
-        print(query_sql)
         logger.error(f"{description} Query Failed: {e}")
         return []
+
+
+def get_orders():
+    """Get Order Data From iSeries AS400."""
+    query_sql = f"""
+        SELECT STRIP({TABLE_DMFMOMRID1}.MFMOMR02),
+               STRIP({TABLE_DMFMOMRID1}.MFMOMR03),
+               STRIP({TABLE_DMFMOMRID1}.MFMOMR0C),
+               STRIP({TABLE_DMFMOMRID1}.MFMOMR0I)
+        FROM {TABLE_DMFMOMRID1}
+        WHERE {TABLE_DMFMOMRID1}.MFMOMR01 = '09' AND LEFT({TABLE_DMFMOMRID1}.MFMOMR0I,1) = '3'
+    """
+    with connect_to_db() as db_connection:
+        cursor = db_connection.cursor()
+        return process_query_result(cursor, query_sql, "AS400 Order Records")
 
 
 def get_inv():
@@ -141,7 +156,7 @@ def get_prod():
                            PROD.{table}.IDEB_MONTH
                     FROM PROD.{table}
                     WHERE PROD.{table}.IDEB_LOC = {FACILITY}
-                    AND PROD.{table}.IDEB_WEEK >= WEEK_ISO(CURRENT DATE) - 3
+                    AND (PROD.{table}.IDEB_WEEK >= WEEK_ISO(CURRENT DATE) - 3 OR WEEK_ISO(CURRENT DATE) <= 3)
                     AND PROD.{table}.IDEB_TOTAL_QTY > 0
                 """
             result = process_query_result(cursor, query_sql, f"AS400 Usage Records from {table}")
