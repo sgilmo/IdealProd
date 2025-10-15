@@ -9,6 +9,7 @@ TRUNCATE_EMPLOYEE_TABLE = "TRUNCATE TABLE production.EMPLOYEE"
 TRUNCATE_TBLUSAGE = "TRUNCATE TABLE dbo.tblUsage_temp"
 TRUNCATE_TBLPROD = "TRUNCATE TABLE eng.tblProd_temp"
 TRUNCATE_TBLINVENTORY = "TRUNCATE TABLE dbo.tblInventory"
+TRUNCATE_TBLORDERS = "TRUNCATE TABLE dbo.tblOrders"
 
 INSERT_EMPLOYEE = """INSERT INTO production.EMPLOYEE (ID, NAME, ROLE) VALUES (?, ?, ?)"""
 INSERT_USAGE = """INSERT INTO dbo.tblUsage_temp (Date, Part, EngPart, Dept, Acct, Clock, Machine, Qty, Cost, SubTotal) 
@@ -20,6 +21,7 @@ INSERT_PROD = """INSERT INTO eng.tblProd_temp (IDEB_WEEK, IDEB_DAY, IDEB_DEPT, I
                     IDEB_PART, IDEB_TICKET_NBR, IDEB_TOTAL_QTY, IDEB_STANDARD, IDEB_ACTUAL_HOURS, IDEB_OVERTIME_HOURS, 
                     IDEB_MONTH) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+INSERT_ORDERS = """INSERT INTO dbo.tblOrders (OrderNum, PartNumber, Qty, Machine) VALUES (?, ?, ?, LEFT(?,3))"""
 
 # Database connection settings
 CONNECTION_STRING = (
@@ -79,21 +81,30 @@ def update_database(data: list, truncate_query: str, insert_query: str):
 
 def update_dbusage(data: list):
     """Update Spare Part Usage Data."""
+    print("Updating Spare Part Usage Data...")
     update_database(data, TRUNCATE_TBLUSAGE, INSERT_USAGE)
 
 def update_dbprod(data: list):
     """Update Spare Part Usage Data."""
+    print("Updating Spare Part Production Data...")
     update_database(data, TRUNCATE_TBLPROD, INSERT_PROD)
 
 
 def update_emps(data: list):
     """Update Employee Data."""
+    print("Updating Employee Data...")
     update_database(data, TRUNCATE_EMPLOYEE_TABLE, INSERT_EMPLOYEE)
 
 
 def update_dbinv(data: list):
     """Update Spare Part Inventory Data."""
+    print("Updating Spare Part Inventory Data...")
     update_database(data, TRUNCATE_TBLINVENTORY, INSERT_INVENTORY)
+
+
+def update_orders(data: list):
+    """Update Spare Part Inventory Data."""
+    update_database(data, TRUNCATE_TBLORDERS, INSERT_ORDERS)
 
 
 def sync_usage(schema="dbo", src_table="tblUsage_temp", dst_table="tblUsage"):
@@ -104,6 +115,7 @@ def sync_usage(schema="dbo", src_table="tblUsage_temp", dst_table="tblUsage"):
     - Runs as a single set-based statement for performance.
     Requires a configured SQLAlchemy engine.
     """
+    print(f"Syncing {schema}.{src_table} into {schema}.{dst_table}...")
     with engine.begin() as conn:
         # 1) Discover common, insertable columns in source and destination
         cols_sql = text("""
