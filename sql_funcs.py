@@ -10,6 +10,7 @@ TRUNCATE_TBLUSAGE = "TRUNCATE TABLE dbo.tblUsage_temp"
 TRUNCATE_TBLPROD = "TRUNCATE TABLE eng.tblProd_temp"
 TRUNCATE_TBLINVENTORY = "TRUNCATE TABLE dbo.tblInventory"
 TRUNCATE_TBLORDERS = "TRUNCATE TABLE dbo.tblOrders"
+TRUNCATE_TBLALLORDERS = "TRUNCATE TABLE dbo.tblOrdersAll"
 
 INSERT_EMPLOYEE = """INSERT INTO production.EMPLOYEE (ID, NAME, ROLE) VALUES (?, ?, ?)"""
 INSERT_USAGE = """INSERT INTO dbo.tblUsage_temp (Date, Part, EngPart, Dept, Acct, Clock, Machine, Qty, Cost, SubTotal) 
@@ -22,6 +23,7 @@ INSERT_PROD = """INSERT INTO eng.tblProd_temp (IDEB_WEEK, IDEB_DAY, IDEB_DEPT, I
                     IDEB_MONTH) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
 INSERT_ORDERS = """INSERT INTO dbo.tblOrders (OrderNum, PartNumber, Qty, Machine) VALUES (?, ?, ?, LEFT(?,3))"""
+INSERT_ALL_ORDERS = """INSERT INTO dbo.tblOrdersAll (OrderNum, PartNumber, Qty, Note) VALUES (?, ?, ?, ?)"""
 
 # Database connection settings
 CONNECTION_STRING = (
@@ -101,10 +103,13 @@ def update_dbinv(data: list):
     print("Updating Spare Part Inventory Data...")
     update_database(data, TRUNCATE_TBLINVENTORY, INSERT_INVENTORY)
 
-
 def update_orders(data: list):
     """Update Spare Part Inventory Data."""
     update_database(data, TRUNCATE_TBLORDERS, INSERT_ORDERS)
+
+def update_all_orders(data: list):
+    """Update Spare Part Inventory Data."""
+    update_database(data, TRUNCATE_TBLALLORDERS, INSERT_ALL_ORDERS)
 
 
 def sync_usage(schema="dbo", src_table="tblUsage_temp", dst_table="tblUsage"):

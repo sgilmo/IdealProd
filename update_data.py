@@ -174,7 +174,7 @@ def parts_df():
     except Exception as e:
         print(f"Error converting data types: {e}")
         return pd.DataFrame()
-    df_clamps = df_clamps[df_clamps.Size != 'None']
+    # df_clamps = df_clamps[df_clamps.Size != 'None']
     df_clamps = df_clamps[df_clamps.Band != 'None']
     df_clamps = df_clamps[df_clamps.Housing != 'None']
     df_clamps = df_clamps[df_clamps.Screw != 'None']
@@ -193,6 +193,9 @@ def parts_df():
     df_clamps['DiaMin'] = df_clamps['DiaMin'].round(3)
     df_clamps['Cutout1'] = df_clamps['Cutout1'].round(3)
     df_clamps['HexSz'] = df_clamps['HexSz'].replace('Purchased 5/16', '5/16')
+    df_clamps['HexSz'] = df_clamps['HexSz'].replace('MX ONLY 10 mm ss', '10 mm')
+    df_clamps['HexSz'] = df_clamps['HexSz'].replace('7 mm Umbrella', '7 mm')
+    df_clamps['HexSz'] = df_clamps['HexSz'].replace('10 mm SS MX ONLY', '10 mm')
     df_clamps = df_clamps.dropna()
     df_clamps = df_clamps.convert_dtypes()
     df_clamps.drop_duplicates(subset='PartNumber', keep='first', inplace=True)

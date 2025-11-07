@@ -63,6 +63,20 @@ def get_orders():
         cursor = db_connection.cursor()
         return process_query_result(cursor, query_sql, "AS400 Order Records")
 
+def get_comp_orders():
+    """Get Order Data From iSeries AS400."""
+    query_sql = f"""
+        SELECT STRIP({TABLE_DMFMOMRID1}.MFMOMR02),
+               STRIP({TABLE_DMFMOMRID1}.MFMOMR03),
+               STRIP({TABLE_DMFMOMRID1}.MFMOMR0C),
+               STRIP({TABLE_DMFMOMRID1}.MFMOMR0I)
+        FROM {TABLE_DMFMOMRID1}
+        WHERE {TABLE_DMFMOMRID1}.MFMOMR01 = '09'
+    """
+    with connect_to_db() as db_connection:
+        cursor = db_connection.cursor()
+        return process_query_result(cursor, query_sql, "AS400 Order Records")
+
 
 def get_inv():
     """Get Spare Inventory Data From iSeries AS400."""
