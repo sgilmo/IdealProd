@@ -3,7 +3,6 @@
 
 """Pandas Driven Data Updates to SQL Server. Will Eventually replace updates and getclamps"""
 import csv
-
 import pandas as pd
 import pyodbc
 import os
@@ -234,7 +233,7 @@ def comp_tbl(df_data):
                       'ITMDESC': sqlalchemy.types.VARCHAR(255),
                       'CLASS': sqlalchemy.types.VARCHAR(255)}
     try:
-        df_data.to_sql('tblCompInv', conn_sql, schema='production', if_exists='replace', index=False,
+        df_data.to_sql('tblInvAll', conn_sql, schema='production', if_exists='replace', index=False,
                          dtype=data_type_dict)
         print(f"Successfully inserted {len(df_data)} records into tblCompInv")
     except:
