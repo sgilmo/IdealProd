@@ -104,11 +104,11 @@ def update_dbinv(data: list):
     update_database(data, TRUNCATE_TBLINVENTORY, INSERT_INVENTORY)
 
 def update_orders(data: list):
-    """Update Spare Part Inventory Data."""
+    """Update ACM Orders Data."""
     update_database(data, TRUNCATE_TBLORDERS, INSERT_ORDERS)
 
 def update_all_orders(data: list):
-    """Update Spare Part Inventory Data."""
+    """Update All Data."""
     update_database(data, TRUNCATE_TBLALLORDERS, INSERT_ALL_ORDERS)
 
 
