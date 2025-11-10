@@ -289,7 +289,7 @@ def main():
 
         # Save to CSV files
         save_dataframe_to_csv(df_parts, 'parts_clamps.csv')
-        save_dataframe_to_csv(df_components, 'components_inventory.csv')
+        # save_dataframe_to_csv(df_components, 'components_inventory.csv')
 
     except Exception as e:
         print(f"Error in main: {e}")
