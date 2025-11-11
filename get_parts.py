@@ -7,6 +7,7 @@ from datetime import datetime
 import common_funcs
 from timeit import default_timer as timer
 import logging
+import socket
 
 # Setup Logging
 # Gets or creates a logger
@@ -24,6 +25,7 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 FORMAT = '%Y%m%d%H%M%S'
+HOSTNAME = socket.gethostname()
 
 
 
@@ -177,17 +179,22 @@ def email_bad_machines(machlist):
 def main():
     """Main Function."""
     # Define file paths
-    partdatapath = "\\Inetpub\\ftproot\\acmparts\\"
-    parthistpath = "\\Inetpub\\ftproot\\acmparts\\history\\"
+    old_part_filename = 'parts.csv'
+    new_part_filename = 'test.csv'
+    json_file = r'C:\Python Projects\IdealProd\acm_map.json'
+    parthistpath = r'C:\inetpub\ftproot\acmparts\history\\'
+    part_folder = r'C:\inetpub\ftproot\acmparts\\'
     maintpath = "\\\\tn-san-fileserv\\dept\\Engineering\\Engineering Data\\Elab\\Machines\\MAINT\\"
     quepath = "\\\\tn-san-fileserv\\dept\\Engineering\\Engineering Data\\Elab\\Machines\\ReviewQue\\"
-    filename = 'test.csv'
-    filepath = r'c:\temp'
-    json_file = r'C:\Python Projects\IdealProd2\acm_map2.json'
-    parthistpath = r'y:\inetpub\ftproot\acmparts\history\\'
-    dest_folder = r'y:\inetpub\ftproot\acmparts\\'
-    curr_file = r'y:\inetpub\ftproot\acmparts\parts.csv'
-    new_file = r'c:\temp\parts_clamps.csv'
+
+    # If Developing Locally updates the paths to accomodate the local workstation
+    if HOSTNAME == 'BNAWS722':
+        json_file = r'C:\Python Projects\IdealProd2\acm_map.json'
+        parthistpath = r'Y:\inetpub\ftproot\acmparts\history\\'
+        part_folder = r'Y:\inetpub\ftproot\acmparts\\'
+
+    curr_file = part_folder + old_part_filename
+    new_file = part_folder + new_part_filename
 
     start = timer()
 
@@ -207,14 +214,14 @@ def main():
         print(msg)
 
         # Save Copy
-        save_history("parts.csv", dest_folder, parthistpath)
+        save_history(old_part_filename, part_folder, parthistpath)
         # Replace file
-        copy_and_rename(new_file, dest_folder, 'steve.csv')
+        copy_and_rename(new_file, part_folder, 'steve.csv')
 
         # Send to machines
-        failed = ftp_file_to_machines(filename, filepath, json_file)
+        failed = ftp_file_to_machines(new_part_filename, part_folder, json_file)
         if failed:
-            email_bad_machines([str(x) for x in failed])
+            if HOSTNAME != 'Serenity': email_bad_machines([str(x) for x in failed])
             print("Failed to transfer files to machines:")
             for machine, ip, error in failed:
                 print(f"  {machine} ({ip}): {error}")
@@ -222,7 +229,8 @@ def main():
         print('Files Identical, No Need to Replace')
 
     # Check Maintenance Directory for New Files
-    check_maint_files(maintpath, quepath)
+    if HOSTNAME != 'Serenity':
+        check_maint_files(maintpath, quepath)
     # update_scrdb(get_file_screws(partdatapath))
     msg = "Total Time = " + str(round((timer() - start), 3)) + " sec"
     logger.info(msg)
