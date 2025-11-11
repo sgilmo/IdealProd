@@ -76,7 +76,7 @@ sql_parts = """
 """
 
 # File path constants
-CSV_OUTPUT_PATH = 'c:\\temp\\'  # Change to your desired output directory
+CSV_OUTPUT_PATH = 'c:\\Inetpub\\ftproot\\acmparts\\'  # Change to your desired output directory
 
 
 def pull_data(conn,qry):
