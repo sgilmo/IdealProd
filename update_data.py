@@ -6,11 +6,11 @@ import csv
 import pandas as pd
 import pyodbc
 import os
+import socket
 import sqlalchemy.types
 from sqlalchemy import create_engine
 from urllib import parse
 from timeit import default_timer as timer
-
 
 # Define Database Connections
 
@@ -75,9 +75,13 @@ sql_parts = """
     FROM tbl8Tridon
 """
 
-# File path constants
-CSV_OUTPUT_PATH = 'c:\\Inetpub\\ftproot\\acmparts\\'  # Change to your desired output directory
+HOSTNAME = socket.gethostname()
 
+# File path constants
+if HOSTNAME == 'BNAWS625':
+    CSV_OUTPUT_PATH = 'Y:\\Inetpub\\ftproot\\acmparts\\'  # Change to the appropriate output directory
+if HOSTNAME == 'TN-DATACOLLECT2':
+    CSV_OUTPUT_PATH = 'C:\\Inetpub\\ftproot\\acmparts\\'  # Change to the appropriate output directory
 
 def pull_data(conn,qry):
     # Connection with error handling and connection management
