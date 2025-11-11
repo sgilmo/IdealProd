@@ -1,3 +1,19 @@
+# coding=utf-8
+# !/usr/bin/env python
+"""This Program will update local machine part databases.
+Compares the csv file (parts_clamps.csv) created by 'update_data.py' to the
+active part file 'parts.csv'. If there is a difference, the current
+parameter file (parts.csv) is replaced with a new one. A copy of the previous
+file will be made and moved to the parthistory folder with a datestamp for
+a name. A log file will also be generated with a list of partnumbers that
+were added, modified or deleted. The file (parts.csv) will then be ftp'd
+to every machine that uses this data. Any machines that could not be updated
+will be logged and the elab will be notified via email.
+The program also monitors the 'MAINT' directory for updated floor
+documentation submitted by the Maint personel. Any files found will be moved
+to the 'ReviewQue' directory, and the Elab will be notified via email.
+"""
+
 import json
 import os
 import csv
@@ -17,7 +33,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # define file handler and set formatter
-file_handler = logging.FileHandler('c:\\logs\\getclamps.log')
+file_handler = logging.FileHandler('c:\\logs\\get_parts.log')
 formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 file_handler.setFormatter(formatter)
 
@@ -30,7 +46,7 @@ HOSTNAME = socket.gethostname()
 
 
 def ftp_file_to_machines(filename, filepath, json_file, username='anonymous', password='anonymous'):
-    """FTP a file to list of machines from acm_map.json.
+    """FTP files to a list of machines from acm_map.json.
 
     Args:
         filename: Name of the file to transfer (e.g., 'parts.csv')
@@ -180,16 +196,16 @@ def main():
     """Main Function."""
     # Define file paths
     old_part_filename = 'parts.csv'
-    new_part_filename = 'test.csv'
-    json_file = r'C:\Python Projects\IdealProd\acm_map.json'
+    new_part_filename = 'parts_clamps.csv'
+    json_file = r'C:\Python Projects\IdealProd\acm_map2.json'
     parthistpath = r'C:\inetpub\ftproot\acmparts\history\\'
     part_folder = r'C:\inetpub\ftproot\acmparts\\'
     maintpath = "\\\\tn-san-fileserv\\dept\\Engineering\\Engineering Data\\Elab\\Machines\\MAINT\\"
     quepath = "\\\\tn-san-fileserv\\dept\\Engineering\\Engineering Data\\Elab\\Machines\\ReviewQue\\"
 
     # If Developing Locally updates the paths to accomodate the local workstation
-    if HOSTNAME == 'BNAWS722':
-        json_file = r'C:\Python Projects\IdealProd2\acm_map.json'
+    if HOSTNAME == 'BNAWS625':
+        json_file = r'C:\Python Projects\IdealProd2\acm_map2.json'
         parthistpath = r'Y:\inetpub\ftproot\acmparts\history\\'
         part_folder = r'Y:\inetpub\ftproot\acmparts\\'
 
@@ -216,13 +232,19 @@ def main():
         # Save Copy
         save_history(old_part_filename, part_folder, parthistpath)
         # Replace file
-        copy_and_rename(new_file, part_folder, 'steve.csv')
+        copy_and_rename(new_file, part_folder, old_part_filename)
 
         # Send to machines
-        failed = ftp_file_to_machines(new_part_filename, part_folder, json_file)
+        failed = ftp_file_to_machines(old_part_filename, part_folder, json_file)
         if failed:
             if HOSTNAME != 'Serenity': email_bad_machines([str(x) for x in failed])
             print("Failed to transfer files to machines:")
+            for machine, ip, error in failed:
+                print(f"  {machine} ({ip}): {error}")
+        failed = ftp_file_to_machines('newparts.txt', part_folder, json_file)
+        if failed:
+            if HOSTNAME != 'Serenity': email_bad_machines([str(x) for x in failed])
+            print("Failed to transfer newparts.txt files to machines:")
             for machine, ip, error in failed:
                 print(f"  {machine} ({ip}): {error}")
     else:
