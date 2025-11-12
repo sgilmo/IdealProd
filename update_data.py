@@ -78,10 +78,9 @@ sql_parts = """
 HOSTNAME = socket.gethostname()
 
 # File path constants
+CSV_OUTPUT_PATH = 'C:\\Inetpub\\ftproot\\acmparts\\'  # Change to the appropriate output directory
 if HOSTNAME == 'BNAWS625':
     CSV_OUTPUT_PATH = 'Y:\\Inetpub\\ftproot\\acmparts\\'  # Change to the appropriate output directory
-if HOSTNAME == 'TN-DATACOLLECT2':
-    CSV_OUTPUT_PATH = 'C:\\Inetpub\\ftproot\\acmparts\\'  # Change to the appropriate output directory
 
 def pull_data(conn,qry):
     # Connection with error handling and connection management
