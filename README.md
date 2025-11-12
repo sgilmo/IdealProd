@@ -3,7 +3,11 @@
 **update.py**
 
 > Parses CSV files and enters data into appropriate SQL Server tables. 
-  Also moves camera files to engineering drive. 
+  Also moves camera files to engineering drive.
+  
+**update_data.py**
+
+> Retrieves component inventory data from AS400 and clamp data from filemaker. Creates SQL Server tables for both and generates a csv file called parts_clamps.csv and places it in the acmparts folder on TN-DATACOLLECT2. That file is used to determine if the current active parts.csv file is current  
 
 **getclamps.py**
 
@@ -17,7 +21,7 @@
 
 **spares.py**
 
-> Tracks Engineering Generated spares thrugh the system from initial request until the items are in stock.
+> Tracks Engineering Generated spares through the system from initial request until the items are in stock.
 
 **acm_set.py**
 
@@ -25,6 +29,6 @@
 
 **network_connectivity_check.py**
 
-> Checks network access to machines and thier networked subsystems
+> Checks network access to machines and their networked subsystems
 
 
