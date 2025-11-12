@@ -197,7 +197,7 @@ def main():
     # Define file paths
     old_part_filename = 'parts.csv'
     new_part_filename = 'parts_clamps.csv'
-    json_file = r'C:\Python Projects\IdealProd\acm_map2.json'
+    json_file = r'C:\Python Projects\IdealProd\acm_map.json'
     parthistpath = r'C:\inetpub\ftproot\acmparts\history\\'
     part_folder = r'C:\inetpub\ftproot\acmparts\\'
     maintpath = "\\\\tn-san-fileserv\\dept\\Engineering\\Engineering Data\\Elab\\Machines\\MAINT\\"
@@ -205,9 +205,16 @@ def main():
 
     # If Developing Locally updates the paths to accomodate the local workstation
     if HOSTNAME == 'BNAWS625':
-        json_file = r'C:\Python Projects\IdealProd2\acm_map2.json'
+        json_file = r'C:\Python Projects\IdealProd2\acm_map.json'
         parthistpath = r'Y:\inetpub\ftproot\acmparts\history\\'
         part_folder = r'Y:\inetpub\ftproot\acmparts\\'
+
+    if HOSTNAME == 'TN-DATACOLLECT2':
+        json_file = r'C:\PycharmProjects\IdealProd\acm_map.json'
+
+    if HOSTNAME == 'Serenity':
+        json_file = r'C:\Python Projects\IdealProd\acm_map.json'
+
 
     curr_file = part_folder + old_part_filename
     new_file = part_folder + new_part_filename
