@@ -21,6 +21,7 @@ user = 'production'
 pwd = parse.quote_plus("Auto@matics")
 port = '1433'
 database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
+
 # Make Connection
 engine = create_engine(database_conn)
 conn = engine.connect()
@@ -28,21 +29,34 @@ conn = engine.connect()
 
 def read_pricelist():
     """Open price list workbook"""
-
-
+    import requests
+    import io
+    import pandas as pd
+    
+    print('Fetching Data File From Automation Direct Web Site')
+    
     name = 'ADC Price List with Categories '
     url = 'https://cdn.automationdirect.com/static/prices/prices_public.xlsx'
-
-    print('Fetching Data File From Automation Direct Web Site')
-
-    # Use requests to get the Excel file (handles SSL verification properly)
-    response = requests.get(url)
-    response.raise_for_status()  # Raise an exception for HTTP errors
-
-    # Read Excel data from the response content
+    
+    # Create browser-like headers
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://www.automationdirect.com/'
+    }
+    
+    # Make the request with appropriate headers
+    response = requests.get(url, headers=headers, verify=True)
+    
+    # Check if request was successful
+    if response.status_code != 200:
+        raise Exception(f"Failed to download file: HTTP {response.status_code}")
+    
+    # Read the Excel data
     excel_data = io.BytesIO(response.content)
     df = pd.read_excel(excel_data, sheet_name=name, usecols=[0, 2, 3])
-
+    
     df_dropped = df.dropna()
     df_reset = df_dropped.reset_index(drop=True)
     df_reset.columns = ['part', 'status', 'price']
