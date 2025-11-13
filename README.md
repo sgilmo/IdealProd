@@ -7,7 +7,7 @@
   
 **update_data.py**
 
-> Retrieves component inventory data from AS400 and clamp data from filemaker. Creates SQL Server tables for both and generates a csv file called parts_clamps.csv and places it in the acmparts folder on TN-DATACOLLECT2. That file is used to determine if the current active parts.csv file is current  
+> Retrieves component inventory data from AS400, as well, as clamp and band data from filemaker. Creates SQL Server tables for all and generates a csv file called parts_clamps.csv and places it in the acmparts folder on TN-DATACOLLECT2. That file is used to determine if the current active parts.csv file is current  
 
 **getclamps.py**
 
