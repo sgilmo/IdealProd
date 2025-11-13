@@ -167,9 +167,36 @@ def check_maint_files(mpath, qpath):
     return
 
 def copy_and_rename(source_path, dest_folder, new_name):
-    """Copy file to destination with a new name."""
+    """Copy file to destination with a new name.
+
+    Args:
+        source_path (str): Path to the source file
+        dest_folder (str): Path to destination folder
+        new_name (str): New filename for the copied file
+
+    Returns:
+        str: Path to the destination file
+
+    Raises:
+        FileNotFoundError: If source file or destination folder don't exist
+        PermissionError: If permission issues prevent the copy
+    """
+    # Check if source file exists
+    if not os.path.isfile(source_path):
+        raise FileNotFoundError(f"Source file not found: {source_path}")
+
+    # Check if destination folder exists
+    if not os.path.isdir(dest_folder):
+        raise FileNotFoundError(f"Destination folder not found: {dest_folder}")
+
     dest_path = os.path.join(dest_folder, new_name)
-    shutil.copy(source_path, dest_path)
+
+    # Perform the copy
+    try:
+        shutil.copy(source_path, dest_path)
+    except (shutil.Error, IOError) as e:
+        raise IOError(f"Error copying file: {e}")
+
     return dest_path
 
 def save_history(filename, partpath, histpath):
