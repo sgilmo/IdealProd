@@ -75,6 +75,14 @@ sql_parts = """
     FROM tbl8Tridon
 """
 
+sql_bands = """
+    SELECT "Band Part Number","Material Spec Number", "Number of Notches",
+        "Band Stamp Part Number A", "Die A Part Number","Die B Part Number","Die C Part Number","Die D Part Number",
+        "Width", "Thickness", "Abutment Punch", "A Notches Removed", "B Notches Removed",
+        "Tang Length Number"
+    FROM BANDS
+"""
+
 HOSTNAME = socket.gethostname()
 
 # File path constants
@@ -205,6 +213,55 @@ def parts_df():
     print(f"Processed {len(df_clamps)} records")
     return df_clamps
 
+def bands_df():
+    # Build Parts Dataframe
+    print('Getting Data From Filemaker')
+    data = pull_data(CONNFM,sql_bands)
+    if not data:
+        print("Warning: No data retrieved from Filemaker")
+        return pd.DataFrame()
+    df_bands = pd.DataFrame.from_records(data)
+    # Set Column Names
+    df_bands.columns = ['PartNumber', 'MatSpec', 'NumNotches', 'BandStampPnA', 'DiePnA', 'DiePnB', 'DiePnC', 'DiePnD',
+                         'Width', 'Thickness', 'AbutPunch', 'ANotchesRemoved', 'BNotchesRemoved', 'TangLength']
+    # Set Data Types
+    data_type_dict = {'PartNumber': str, 'MatSpec': str, 'NumNotches': float, 'BandStampPnA': str, 'DiePnA': str,
+                      'DiePnB': str, 'DiePnC': str, 'DiePnD': str, 'Width': float, 'Thickness': float,
+                      'AbutPunch': str, 'ANotchesRemoved': float, 'BNotchesRemoved': float, 'TangLength': float}
+
+    # Do Some Filtering and Data Cleansing
+    df_bands = df_bands[df_bands.PartNumber != 'N/A']
+    df_bands = df_bands[1:]
+
+    # Trim whitespace from all string columns
+    string_cols = df_bands.select_dtypes(include=['object']).columns
+    df_bands[string_cols] = df_bands[string_cols].apply(lambda x: x.str.strip())
+
+    # Remove Quotes
+    df_bands[string_cols] = df_bands[string_cols].apply(lambda x: x.str.replace(r'["\']', '', regex=True))
+
+    try:
+        df_bands = df_bands.astype(data_type_dict)
+    except Exception as e:
+        print(f"Error converting data types: {e}")
+        return pd.DataFrame()
+    df_bands['Width'] = df_bands['Width'].round(2)
+    df_bands['Thickness'] = df_bands['Thickness'].round(3)
+    df_bands['TangLength'] = df_bands['TangLength'].round(2)
+    df_bands['NumNotches'] = df_bands['NumNotches'].round(0)
+    df_bands.fillna({'Width': 0.0}, inplace=True)
+    df_bands.fillna({'Thickness': 0.0}, inplace=True)
+    df_bands.fillna({'NumNotches': 0}, inplace=True)
+    df_bands.fillna({'ANotchesRemoved': 0}, inplace=True)
+    df_bands.fillna({'BNotchesRemoved': 0}, inplace=True)
+    df_bands.fillna({'TangLength': 0}, inplace=True)
+    df_bands = df_bands.dropna()
+    df_bands = df_bands.convert_dtypes()
+    df_bands.drop_duplicates(subset='PartNumber', keep='first', inplace=True)
+    df_bands = df_bands.sort_values(by='PartNumber')
+    print(f"Processed {len(df_bands)} records")
+    return df_bands
+
 def part_tbl(df_data):
     # Build Parts Table
     print('Build Part SQL Table')
@@ -220,11 +277,54 @@ def part_tbl(df_data):
                       'Cutout1': sqlalchemy.types.Float, 'Drawing': sqlalchemy.types.VARCHAR(255),
                       'Size': sqlalchemy.types.VARCHAR(255), 'Pack': sqlalchemy.types.VARCHAR(255)}
     try:
-        df_data.to_sql('parts_clamps', conn_sql, schema='production', if_exists='replace', index=False,
+        df_data.to_sql('parts_clamps', engine, schema='production', if_exists='replace', index=False,
                          dtype=data_type_dict)
         print(f"Successfully inserted {len(df_data)} records into parts_clamps")
     except Exception as e:
         print(f"Error inserting data into parts_clamps: {e}")
+
+def band_tbl(df_data):
+    """
+    Build Band Table and insert data into SQL Server.
+
+    Args:
+        df_data: DataFrame containing band data
+
+    Raises:
+        ValueError: If DataFrame is empty or missing required columns
+        Exception: If database operation fails
+    """
+
+    # Build Band Table
+    print('Build Part SQL Table')
+
+    if df_data.empty:
+        print("Warning: Empty DataFrame, skipping SQL insert")
+        return
+
+    # Validate required columns exist
+    required_columns = ['PartNumber', 'MatSpec', 'NumNotches', 'BandStampPnA',
+                       'DiePnA', 'DiePnB', 'DiePnC', 'DiePnD', 'Width',
+                       'Thickness', 'AbutPunch', 'ANotchesRemoved',
+                       'BNotchesRemoved', 'TangLength']
+    missing_columns = [col for col in required_columns if col not in df_data.columns]
+    if missing_columns:
+        raise ValueError(f"DataFrame missing required columns: {missing_columns}")
+
+    data_type_dict = {'PartNumber': sqlalchemy.types.VARCHAR(255), 'MatSpec': sqlalchemy.types.VARCHAR(255),
+                      'NumNotches': sqlalchemy.types.Float, 'BandStampPnA': sqlalchemy.types.VARCHAR(255),
+                      'DiePnA': sqlalchemy.types.VARCHAR(255), 'DiePnB': sqlalchemy.types.VARCHAR(255),
+                      'DiePnC': sqlalchemy.types.VARCHAR(255), 'DiePnD': sqlalchemy.types.VARCHAR(255),
+                      'Width': sqlalchemy.types.Float, 'Thickness': sqlalchemy.types.Float,
+                      'AbutPunch': sqlalchemy.types.VARCHAR(255), 'ANotchesRemoved': sqlalchemy.types.Float,
+                      'BNotchesRemoved': sqlalchemy.types.Float, 'TangLength': sqlalchemy.types.Float}
+    try:
+        df_data.to_sql('tblBands', engine, schema='eng', if_exists='replace', index=False,
+                         dtype=data_type_dict)
+        print(f"Successfully inserted {len(df_data)} records into eng.tblBands")
+    except Exception as e:
+        print(f"Error inserting data into eng.tblBands: {e}")
+        raise  # Re-raise the exception so caller can handle it
 
 def comp_tbl(df_data):
     # Build Components Table
@@ -236,11 +336,11 @@ def comp_tbl(df_data):
                       'ITMDESC': sqlalchemy.types.VARCHAR(255),
                       'CLASS': sqlalchemy.types.VARCHAR(255)}
     try:
-        df_data.to_sql('tblInvAll', conn_sql, schema='production', if_exists='replace', index=False,
+        df_data.to_sql('tblInvAll', engine, schema='production', if_exists='replace', index=False,
                          dtype=data_type_dict)
         print(f"Successfully inserted {len(df_data)} records into tblCompInv")
-    except:
-        print("Error inserting data into tblCompInv")
+    except Exception as e:
+        print(f"Error inserting data into tblCompInv: {e}")
 
 
 def save_dataframe_to_csv(df_data, filename, output_path=CSV_OUTPUT_PATH):
@@ -285,10 +385,12 @@ def main():
         # Get data
         df_parts = parts_df()
         df_components = comp_df()
+        df_bands = bands_df()
 
         # Save to SQL Server
         part_tbl(df_parts)
         comp_tbl(df_components)
+        band_tbl(df_bands)
 
         # Save to CSV files
         save_dataframe_to_csv(df_parts, 'parts_clamps.csv')
