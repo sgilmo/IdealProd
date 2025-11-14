@@ -277,18 +277,39 @@ def part_tbl(df_data):
                       'Cutout1': sqlalchemy.types.Float, 'Drawing': sqlalchemy.types.VARCHAR(255),
                       'Size': sqlalchemy.types.VARCHAR(255), 'Pack': sqlalchemy.types.VARCHAR(255)}
     try:
-        df_data.to_sql('parts_clamps', conn_sql, schema='production', if_exists='replace', index=False,
+        df_data.to_sql('parts_clamps', engine, schema='production', if_exists='replace', index=False,
                          dtype=data_type_dict)
         print(f"Successfully inserted {len(df_data)} records into parts_clamps")
     except Exception as e:
         print(f"Error inserting data into parts_clamps: {e}")
 
 def band_tbl(df_data):
+    """
+    Build Band Table and insert data into SQL Server.
+
+    Args:
+        df_data: DataFrame containing band data
+
+    Raises:
+        ValueError: If DataFrame is empty or missing required columns
+        Exception: If database operation fails
+    """
+
     # Build Band Table
     print('Build Part SQL Table')
+
     if df_data.empty:
         print("Warning: Empty DataFrame, skipping SQL insert")
         return
+
+    # Validate required columns exist
+    required_columns = ['PartNumber', 'MatSpec', 'NumNotches', 'BandStampPnA',
+                       'DiePnA', 'DiePnB', 'DiePnC', 'DiePnD', 'Width',
+                       'Thickness', 'AbutPunch', 'ANotchesRemoved',
+                       'BNotchesRemoved', 'TangLength']
+    missing_columns = [col for col in required_columns if col not in df_data.columns]
+    if missing_columns:
+        raise ValueError(f"DataFrame missing required columns: {missing_columns}")
 
     data_type_dict = {'PartNumber': sqlalchemy.types.VARCHAR(255), 'MatSpec': sqlalchemy.types.VARCHAR(255),
                       'NumNotches': sqlalchemy.types.Float, 'BandStampPnA': sqlalchemy.types.VARCHAR(255),
@@ -298,11 +319,12 @@ def band_tbl(df_data):
                       'AbutPunch': sqlalchemy.types.VARCHAR(255), 'ANotchesRemoved': sqlalchemy.types.Float,
                       'BNotchesRemoved': sqlalchemy.types.Float, 'TangLength': sqlalchemy.types.Float}
     try:
-        df_data.to_sql('tblBands', conn_sql, schema='eng', if_exists='replace', index=False,
+        df_data.to_sql('tblBands', engine, schema='eng', if_exists='replace', index=False,
                          dtype=data_type_dict)
         print(f"Successfully inserted {len(df_data)} records into eng.tblBands")
     except Exception as e:
         print(f"Error inserting data into eng.tblBands: {e}")
+        raise  # Re-raise the exception so caller can handle it
 
 def comp_tbl(df_data):
     # Build Components Table
@@ -314,7 +336,7 @@ def comp_tbl(df_data):
                       'ITMDESC': sqlalchemy.types.VARCHAR(255),
                       'CLASS': sqlalchemy.types.VARCHAR(255)}
     try:
-        df_data.to_sql('tblInvAll', conn_sql, schema='production', if_exists='replace', index=False,
+        df_data.to_sql('tblInvAll', engine, schema='production', if_exists='replace', index=False,
                          dtype=data_type_dict)
         print(f"Successfully inserted {len(df_data)} records into tblCompInv")
     except Exception as e:
