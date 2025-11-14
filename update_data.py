@@ -82,9 +82,110 @@ sql_bands = """
         "Tang Length Number"
     FROM BANDS
 """
-
+# Set Some Constants
 HOSTNAME = socket.gethostname()
+BAND_COLUMNS = [
+    'PartNumber', 'MatSpec', 'NumNotches', 'BandStampPnA', 'DiePnA', 'DiePnB',
+    'DiePnC', 'DiePnD', 'Width', 'Thickness', 'AbutPunch', 'ANotchesRemoved',
+    'BNotchesRemoved', 'TangLength'
+]
 
+BAND_DTYPE_MAP = {
+    'PartNumber': str,
+    'MatSpec': str,
+    'NumNotches': float,
+    'BandStampPnA': str,
+    'DiePnA': str,
+    'DiePnB': str,
+    'DiePnC': str,
+    'DiePnD': str,
+    'Width': float,
+    'Thickness': float,
+    'AbutPunch': str,
+    'ANotchesRemoved': float,
+    'BNotchesRemoved': float,
+    'TangLength': float,
+}
+
+BAND_NUMERIC_DEFAULTS = {
+    'Width': 0.0,
+    'Thickness': 0.0,
+    'NumNotches': 0,
+    'ANotchesRemoved': 0,
+    'BNotchesRemoved': 0,
+    'TangLength': 0,
+}
+
+PARTS_COLUMNS = [
+    "PartNumber",
+    "Band",
+    "Housing",
+    "Screw",
+    "Feed",
+    "DiaMax",
+    "DiaMin",
+    "HexSz",
+    "BandThickness",
+    "BandWidth",
+    "CamInspect",
+    "ScrDrvChk",
+    "Cutout1",
+    "Drawing",
+    "Size",
+    "Pack",
+]
+
+PARTS_DTYPE_MAP = {
+    "PartNumber": str,
+    "Band": str,
+    "Housing": str,
+    "Screw": str,
+    "Feed": float,
+    "DiaMax": float,
+    "DiaMin": float,
+    "HexSz": str,
+    "BandThickness": float,
+    "BandWidth": float,
+    "CamInspect": str,
+    "ScrDrvChk": str,
+    "Cutout1": float,
+    "Drawing": str,
+    "Size": str,
+    "Pack": str,
+}
+
+REQUIRED_NON_NONE_COLUMNS = [
+    "Band",
+    "Housing",
+    "Screw",
+    "HexSz",
+    "CamInspect",
+    "PartNumber",
+]
+
+NUMERIC_COLUMNS_TO_ROUND = [
+    "Feed",
+    "BandWidth",
+    "BandThickness",
+    "DiaMax",
+    "DiaMin",
+    "Cutout1",
+]
+
+HEX_SIZE_NORMALIZATION = {
+    "Purchased 5/16": "5/16",
+    "MX ONLY 10 mm ss": "10 mm",
+    "7 mm Umbrella": "7 mm",
+    "10 mm SS MX ONLY": "10 mm",
+}
+
+COMPONENTS_COLUMNS = ["ITMID", "QTY", "ITMDESC", "CLASS"]
+COMPONENTS_DTYPE = {
+    "ITMID": str,
+    "QTY": int,
+    "ITMDESC": str,
+    "CLASS": str,
+}
 # File path constants
 CSV_OUTPUT_PATH = 'C:\\Inetpub\\ftproot\\acmparts\\'  # Change to the appropriate output directory
 if HOSTNAME == 'BNAWS625':
@@ -122,147 +223,182 @@ def pull_data(conn,qry):
 
     return result
 
-def comp_df():
-    # Build Components Dataframe
-    print('Getting Data From AS400')
-    data = pull_data(CONNAS400_CCSDTA, sql_inv)
+def _build_components_dataframe(raw_records: list) -> pd.DataFrame:
+    """
+    Build the components inventory DataFrame from raw AS400 records.
 
-    if not data:
-        print("Warning: No data retrieved from AS400")
-        return pd.DataFrame()
+    This function is responsible only for shaping, cleaning, and casting
+    the data into the expected schema.
+    """
+    if not raw_records:
+        # Return an empty DataFrame with the correct schema
+        return pd.DataFrame(columns=COMPONENTS_COLUMNS)
 
-    df_inv = pd.DataFrame.from_records(data)
-    data_type_dict = {'ITMID': str, 'QTY': int, 'ITMDESC': str, 'CLASS': str}
-    df_inv.columns = ['ITMID', 'QTY', 'ITMDESC', 'CLASS']
+    df_inv = pd.DataFrame.from_records(raw_records, columns=COMPONENTS_COLUMNS)
 
-    # Clean data before type conversion
-    df_inv = df_inv.dropna()
+    # Drop any rows missing required fields before numeric conversion
+    df_inv = df_inv.dropna(subset=COMPONENTS_COLUMNS)
 
-    # Convert QTY to numeric, coercing errors
-    df_inv['QTY'] = pd.to_numeric(df_inv['QTY'], errors='coerce')
-    df_inv = df_inv.dropna(subset=['QTY'])  # Remove rows where QTY couldn't be converted
+    # Convert QTY to numeric, coercing invalid entries to NaN
+    df_inv["QTY"] = pd.to_numeric(df_inv["QTY"], errors="coerce")
+
+    # Remove rows where QTY could not be converted
+    df_inv = df_inv.dropna(subset=["QTY"])
 
     try:
-        df_inv = df_inv.astype(data_type_dict)
-    except Exception as e:
-        print(f"Error converting data types: {e}")
-        return pd.DataFrame()
+        df_inv = df_inv.astype(COMPONENTS_DTYPE)
+    except (TypeError, ValueError) as exc:
+        print(f"Error converting component inventory data types: {exc}")
+        return pd.DataFrame(columns=COMPONENTS_COLUMNS)
 
+    # Let pandas choose the most appropriate dtypes (nullable ints, etc.)
     df_inv = df_inv.convert_dtypes()
-    print(f"Processed {len(df_inv)} records")
+
+    print(f"Processed {len(df_inv)} component inventory records")
     return df_inv
 
-def parts_df():
-    # Build Parts Dataframe
-    print('Getting Data From Filemaker')
-    data = pull_data(CONNFM,sql_parts)
-    if not data:
+
+def comp_df() -> pd.DataFrame:
+    """
+    Retrieve component inventory data from AS400 and return it as a cleaned DataFrame.
+    """
+    print("Getting component inventory data from AS400")
+    raw_records = pull_data(CONNAS400_CCSDTA, sql_inv)
+
+    if not raw_records:
+        print("Warning: No component inventory data retrieved from AS400")
+        return pd.DataFrame(columns=COMPONENTS_COLUMNS)
+
+    return _build_components_dataframe(raw_records)
+
+def parts_df() -> pd.DataFrame:
+    """Build and clean Parts DataFrame from FileMaker source."""
+    print("Getting Data From Filemaker")
+    raw_data = pull_data(CONNFM, sql_parts)
+
+    if not raw_data:
         print("Warning: No data retrieved from Filemaker")
         return pd.DataFrame()
-    df_clamps = pd.DataFrame.from_records(data)
-    # Set Column Names
-    df_clamps.columns = ['PartNumber', 'Band', 'Housing', 'Screw', 'Feed', 'DiaMax', 'DiaMin', 'HexSz', 'BandThickness',
-                         'BandWidth', 'CamInspect', 'ScrDrvChk', 'Cutout1', 'Drawing', 'Size', 'Pack']
-    # Set Data Types
-    data_type_dict = {'PartNumber': str, 'Band': str, 'Housing': str, 'Screw': str, 'Feed': float, 'DiaMax': float,
-                      'DiaMin': float, 'HexSz': str, 'BandThickness': float, 'BandWidth': float, 'CamInspect': str,
-                      'ScrDrvChk': str, 'Cutout1': float, 'Drawing': str, 'Size': str, 'Pack': str}
 
-    # Do Some Filtering and Data Cleansing
-    df_clamps = df_clamps[df_clamps.Feed != 'N/A']
-    df_clamps = df_clamps[1:]
+    # Build initial DataFrame with explicit columns
+    df_parts = pd.DataFrame.from_records(raw_data, columns=PARTS_COLUMNS)
 
-    # Trim whitespace from all string columns
-    string_cols = df_clamps.select_dtypes(include=['object']).columns
-    df_clamps[string_cols] = df_clamps[string_cols].apply(lambda x: x.str.strip())
+    # Basic filtering and row slicing
+    df_parts = df_parts[df_parts["Feed"] != "N/A"].iloc[1:].copy()
 
-    # Remove Quotes
-    df_clamps[string_cols] = df_clamps[string_cols].apply(lambda x: x.str.replace(r'["\']', '', regex=True))
+    # Clean string columns (trim & remove quotes)
+    df_parts = _clean_string_columns(df_parts)
 
+    # Convert to target dtypes
     try:
-        df_clamps = df_clamps.astype(data_type_dict)
-    except Exception as e:
-        print(f"Error converting data types: {e}")
+        df_parts = df_parts.astype(PARTS_DTYPE_MAP)
+    except (TypeError, ValueError) as exc:
+        print(f"Error converting data types: {exc}")
         return pd.DataFrame()
-    # df_clamps = df_clamps[df_clamps.Size != 'None']
-    df_clamps = df_clamps[df_clamps.Band != 'None']
-    df_clamps = df_clamps[df_clamps.Housing != 'None']
-    df_clamps = df_clamps[df_clamps.Screw != 'None']
-    df_clamps = df_clamps[df_clamps.HexSz != 'None']
-    df_clamps = df_clamps[df_clamps.CamInspect != 'None']
-    df_clamps = df_clamps[df_clamps.PartNumber != 'None']
-    df_clamps['CamInspect'] = df_clamps['CamInspect'].str.upper()
-    df_clamps['ScrDrvChk'] = df_clamps['ScrDrvChk'].str.upper()
-    df_clamps['Feed'] = df_clamps['Feed'].round(3)
-    df_clamps['BandWidth'] = df_clamps['BandWidth'].round(3)
-    df_clamps['BandThickness'] = df_clamps['BandThickness'].round(3)
-    df_clamps.fillna({'DiaMax': 0.0}, inplace=True)
-    df_clamps.fillna({'DiaMin': 0.0}, inplace=True)
-    df_clamps.fillna({'Cutout1': 0.0}, inplace=True)
-    df_clamps['DiaMax'] = df_clamps['DiaMax'].round(3)
-    df_clamps['DiaMin'] = df_clamps['DiaMin'].round(3)
-    df_clamps['Cutout1'] = df_clamps['Cutout1'].round(3)
-    df_clamps['HexSz'] = df_clamps['HexSz'].replace('Purchased 5/16', '5/16')
-    df_clamps['HexSz'] = df_clamps['HexSz'].replace('MX ONLY 10 mm ss', '10 mm')
-    df_clamps['HexSz'] = df_clamps['HexSz'].replace('7 mm Umbrella', '7 mm')
-    df_clamps['HexSz'] = df_clamps['HexSz'].replace('10 mm SS MX ONLY', '10 mm')
-    df_clamps = df_clamps.dropna()
-    df_clamps = df_clamps.convert_dtypes()
-    df_clamps.drop_duplicates(subset='PartNumber', keep='first', inplace=True)
-    df_clamps = df_clamps.sort_values(by='PartNumber')
-    print(f"Processed {len(df_clamps)} records")
-    return df_clamps
 
-def bands_df():
-    # Build Parts Dataframe
+    # Filter out placeholder "None" values in required columns
+    for column in REQUIRED_NON_NONE_COLUMNS:
+        df_parts = df_parts[df_parts[column] != "None"]
+
+    # Normalize case for inspection / screw-driver check flags
+    df_parts["CamInspect"] = df_parts["CamInspect"].str.upper()
+    df_parts["ScrDrvChk"] = df_parts["ScrDrvChk"].str.upper()
+
+    # Fill numeric NaNs with 0.0 and round
+    df_parts[NUMERIC_COLUMNS_TO_ROUND] = (
+        df_parts[NUMERIC_COLUMNS_TO_ROUND].fillna(0.0).round(3)
+    )
+
+    # Normalize HexSz text variants
+    df_parts["HexSz"] = df_parts["HexSz"].replace(HEX_SIZE_NORMALIZATION)
+
+    # Final cleanup: drop remaining NaNs, normalize dtypes, deduplicate and sort
+    df_parts = (
+        df_parts.dropna()
+        .convert_dtypes()
+        .drop_duplicates(subset="PartNumber", keep="first")
+        .sort_values(by="PartNumber")
+    )
+
+    print(f"Processed {len(df_parts)} records")
+    return df_parts
+
+def _clean_string_columns(df) -> pd.DataFrame:
+    """
+    Trim whitespace and remove quotes from all string columns in the given DataFrame.
+    """
+    string_cols = df.select_dtypes(include=['object']).columns
+    if not len(string_cols):
+        return df
+
+    df[string_cols] = df[string_cols].apply(lambda col: col.str.strip())
+    df[string_cols] = df[string_cols].apply(
+        lambda col: col.str.replace(r'["\']', '', regex=True)
+    )
+    return df
+
+def bands_df() -> pd.DataFrame:
+    """
+        Build and clean the Bands DataFrame from FileMaker data.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Cleaned bands data, or an empty DataFrame if no data or errors occur.
+        """
     print('Getting Data From Filemaker')
-    data = pull_data(CONNFM,sql_bands)
+    data = pull_data(CONNFM, sql_bands)
+
     if not data:
         print("Warning: No data retrieved from Filemaker")
         return pd.DataFrame()
+
     df_bands = pd.DataFrame.from_records(data)
-    # Set Column Names
-    df_bands.columns = ['PartNumber', 'MatSpec', 'NumNotches', 'BandStampPnA', 'DiePnA', 'DiePnB', 'DiePnC', 'DiePnD',
-                         'Width', 'Thickness', 'AbutPunch', 'ANotchesRemoved', 'BNotchesRemoved', 'TangLength']
-    # Set Data Types
-    data_type_dict = {'PartNumber': str, 'MatSpec': str, 'NumNotches': float, 'BandStampPnA': str, 'DiePnA': str,
-                      'DiePnB': str, 'DiePnC': str, 'DiePnD': str, 'Width': float, 'Thickness': float,
-                      'AbutPunch': str, 'ANotchesRemoved': float, 'BNotchesRemoved': float, 'TangLength': float}
+    df_bands.columns = BAND_COLUMNS
 
-    # Do Some Filtering and Data Cleansing
-    df_bands = df_bands[df_bands.PartNumber != 'N/A']
-    df_bands = df_bands[1:]
+    # Clean string columns (trim + remove quotes)
+    df_bands = _clean_string_columns(df_bands)
 
-    # Trim whitespace from all string columns
-    string_cols = df_bands.select_dtypes(include=['object']).columns
-    df_bands[string_cols] = df_bands[string_cols].apply(lambda x: x.str.strip())
+    # Basic filtering and cleansing
+    df_bands = df_bands[df_bands['PartNumber'] != 'N/A']
+    df_bands = df_bands.iloc[1:]  # skip header/invalid first row if present
 
-    # Remove Quotes
-    df_bands[string_cols] = df_bands[string_cols].apply(lambda x: x.str.replace(r'["\']', '', regex=True))
-
+    # Convert data types
     try:
-        df_bands = df_bands.astype(data_type_dict)
+        df_bands = df_bands.astype(BAND_DTYPE_MAP)
     except Exception as e:
         print(f"Error converting data types: {e}")
         return pd.DataFrame()
+
+    # Round numeric columns
     df_bands['Width'] = df_bands['Width'].round(2)
     df_bands['Thickness'] = df_bands['Thickness'].round(3)
     df_bands['TangLength'] = df_bands['TangLength'].round(2)
     df_bands['NumNotches'] = df_bands['NumNotches'].round(0)
-    df_bands.fillna({'Width': 0.0}, inplace=True)
-    df_bands.fillna({'Thickness': 0.0}, inplace=True)
-    df_bands.fillna({'NumNotches': 0}, inplace=True)
-    df_bands.fillna({'ANotchesRemoved': 0}, inplace=True)
-    df_bands.fillna({'BNotchesRemoved': 0}, inplace=True)
-    df_bands.fillna({'TangLength': 0}, inplace=True)
+
+    # Fill missing numeric values with safe defaults
+    df_bands.fillna(BAND_NUMERIC_DEFAULTS, inplace=True)
+
+    # Final cleanup: drop any remaining NaNs, normalize dtypes, deduplicate and sort
     df_bands = df_bands.dropna()
     df_bands = df_bands.convert_dtypes()
     df_bands.drop_duplicates(subset='PartNumber', keep='first', inplace=True)
     df_bands = df_bands.sort_values(by='PartNumber')
+
     print(f"Processed {len(df_bands)} records")
     return df_bands
 
 def part_tbl(df_data):
+    """
+        Build Part Table and insert data into SQL Server.
+
+        Args:
+            df_data: DataFrame containing band data
+
+        Raises:
+            ValueError: If DataFrame is empty or missing required columns
+            Exception: If database operation fails
+        """
     # Build Parts Table
     print('Build Part SQL Table')
     if df_data.empty:
