@@ -268,6 +268,17 @@ def part_tbl(df_data):
     if df_data.empty:
         print("Warning: Empty DataFrame, skipping SQL insert")
         return
+
+    # Validate required columns exist
+    required_columns = ['PartNumber', 'Band', 'Housing', 'Screw', 'Feed', 'DiaMax',
+                        'DiaMin', 'HexSz', 'BandThickness', 'BandWidth', 'CamInspect',
+                        'ScrDrvChk', 'Cutout1', 'Drawing', 'Size']
+    missing_columns = [col for col in required_columns if col not in df_data.columns]
+    if missing_columns:
+        error_msg = f"Missing required columns: {missing_columns}"
+        print(f"Error: {error_msg}")
+        raise ValueError(error_msg)
+
     data_type_dict = {'PartNumber': sqlalchemy.types.VARCHAR(255), 'Band': sqlalchemy.types.VARCHAR(255),
                       'Housing': sqlalchemy.types.VARCHAR(255), 'Screw': sqlalchemy.types.VARCHAR(255),
                       'Feed': sqlalchemy.types.Float, 'DiaMax': sqlalchemy.types.Float,
@@ -282,6 +293,7 @@ def part_tbl(df_data):
         print(f"Successfully inserted {len(df_data)} records into parts_clamps")
     except Exception as e:
         print(f"Error inserting data into parts_clamps: {e}")
+        raise  # Re-raise to allow calling code to handle the error
 
 def band_tbl(df_data):
     """
@@ -309,7 +321,9 @@ def band_tbl(df_data):
                        'BNotchesRemoved', 'TangLength']
     missing_columns = [col for col in required_columns if col not in df_data.columns]
     if missing_columns:
-        raise ValueError(f"DataFrame missing required columns: {missing_columns}")
+        error_msg = f"Missing required columns: {missing_columns}"
+        print(f"Error: {error_msg}")
+        raise ValueError(error_msg)
 
     data_type_dict = {'PartNumber': sqlalchemy.types.VARCHAR(255), 'MatSpec': sqlalchemy.types.VARCHAR(255),
                       'NumNotches': sqlalchemy.types.Float, 'BandStampPnA': sqlalchemy.types.VARCHAR(255),
@@ -332,6 +346,15 @@ def comp_tbl(df_data):
     if df_data.empty:
         print("Warning: Empty DataFrame, skipping SQL insert")
         return
+
+    # Validate required columns exist
+    required_columns = ['ITMID', 'QTY', 'ITMDESC', 'CLASS']
+    missing_columns = [col for col in required_columns if col not in df_data.columns]
+    if missing_columns:
+        error_msg = f"Missing required columns: {missing_columns}"
+        print(f"Error: {error_msg}")
+        raise ValueError(error_msg)
+
     data_type_dict = {'ITMID': sqlalchemy.types.VARCHAR(255), 'QTY': sqlalchemy.types.INT,
                       'ITMDESC': sqlalchemy.types.VARCHAR(255),
                       'CLASS': sqlalchemy.types.VARCHAR(255)}
