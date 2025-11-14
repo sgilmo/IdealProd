@@ -12,12 +12,12 @@
       <driver-ref>java.sql.Driver</driver-ref>
       <synchronize>true</synchronize>
       <configured-by-url>true</configured-by-url>
-      <jdbc-driver>com.filemaker.jdbc.Driver</jdbc-driver>
+      <jdbc-driver>com.ibm.as400.access.AS400JDBCDriver</jdbc-driver>
       <jdbc-url>jdbc:filemaker://tn-fm20/mfg8clamps</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
     <data-source source="LOCAL" name="iSeries" uuid="defe8fa7-7f41-425d-8526-a9026bb8a64a">
-      <driver-ref>b8eba78b-c7b6-40ca-9cdd-fba74fe968a6</driver-ref>
+      <driver-ref>db2.jtopen</driver-ref>
       <synchronize>true</synchronize>
       <configured-by-url>true</configured-by-url>
       <jdbc-driver>com.ibm.as400.access.AS400JDBCDriver</jdbc-driver>
