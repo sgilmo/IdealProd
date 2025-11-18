@@ -78,7 +78,7 @@ sql_parts = """
 sql_bands = """
     SELECT "Band Part Number","Material Spec Number", "Number of Notches",
         "Band Stamp Part Number A", "Die A Part Number","Die B Part Number","Die C Part Number","Die D Part Number",
-        "Width", "Thickness", "Abutment Punch", "A Notches Removed", "B Notches Removed",
+        "Width", "Thickness", "Abutment Punch Data", "A Notches Removed", "B Notches Removed",
         "Tang Length Number"
     FROM BANDS
 """
