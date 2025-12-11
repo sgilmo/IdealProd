@@ -4,6 +4,8 @@
 """Pandas Driven Data Updates to SQL Server. Will Eventually replace updates and getclamps"""
 import csv
 import pandas as pd
+import as400
+import sql_funcs
 import pyodbc
 import os
 import socket
@@ -539,8 +541,19 @@ def save_dataframe_to_csv(df_data, filename, output_path=CSV_OUTPUT_PATH):
         return None
 
 
+def get_orders():
+    # Main Function
+    orders = as400.get_orders()
+    sql_funcs.update_orders(orders)
+
+    all_orders = as400.get_comp_orders()
+    sql_funcs.update_all_orders(all_orders)
+    return
+
 def main():
     try:
+        # Get Orders
+        get_orders()
         # Get data
         df_parts = parts_df()
         df_components = comp_df()
