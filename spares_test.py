@@ -1,7 +1,5 @@
 import pyodbc
-from pywin.mfc.object import Object
 from sqlalchemy import create_engine
-from sqlalchemy.types import Integer, Float, Text
 import sqlalchemy.exc
 from urllib import parse
 import pandas as pd
