@@ -83,7 +83,7 @@ def make_req():
         print("Dataframe Size = ", df_reqspares.size)
         df_reqspares['cost'] = df_reqspares['cost'].round(2)
         df_reqspares['reqdate'] = datetime.now().date()
-        # Add requestors to mailing list
+        # Add requestors to the mailing list
         unique_reqby = df_reqspares['req_by'].drop_duplicates().tolist()
         mail_list = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com",
                      "toolcrib@idealtridon.com"]
