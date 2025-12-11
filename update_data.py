@@ -196,6 +196,7 @@ if HOSTNAME == 'BNAWS625':
 def pull_data(conn,qry):
     # Connection with error handling and connection management
     result = []
+    start = 0
     msg = ""  # Initialize msg
     dbcnxn = None  # Initialize dbcnxn
     try:
