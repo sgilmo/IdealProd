@@ -73,7 +73,7 @@ sql_parts = """
     SELECT Ourpart,"Band A Part Number", "Housing A Part Number",
         "Screw Part Number", "Band Feed from Band data",
         "Ship Diam Max", "Ship Diam Min", "Hex Size", "Band_Thickness", "Band_Width",
-        "CameraInspectionRequired", "ScrDrvChk", "Cutout1", "DrawingPrintNumber","Size", "Pack"
+        "CameraInspectionRequired", "ScrDrvChk", "Cutout1", "DrawingPrintNumber","Size", "Pack", "Ultimate Torque Min"
     FROM tbl8Tridon
 """
 
@@ -135,6 +135,7 @@ PARTS_COLUMNS = [
     "Drawing",
     "Size",
     "Pack",
+    "UltimateTorqueMin",
 ]
 
 PARTS_DTYPE_MAP = {
@@ -154,6 +155,7 @@ PARTS_DTYPE_MAP = {
     "Drawing": str,
     "Size": str,
     "Pack": str,
+    "UltimateTorqueMin": float,
 }
 
 REQUIRED_NON_NONE_COLUMNS = [
@@ -172,6 +174,7 @@ NUMERIC_COLUMNS_TO_ROUND = [
     "DiaMax",
     "DiaMin",
     "Cutout1",
+    "UltimateTorqueMin",
 ]
 
 HEX_SIZE_NORMALIZATION = {
@@ -411,7 +414,7 @@ def part_tbl(df_data):
     # Validate required columns exist
     required_columns = ['PartNumber', 'Band', 'Housing', 'Screw', 'Feed', 'DiaMax',
                         'DiaMin', 'HexSz', 'BandThickness', 'BandWidth', 'CamInspect',
-                        'ScrDrvChk', 'Cutout1', 'Drawing', 'Size']
+                        'ScrDrvChk', 'Cutout1', 'Drawing', 'Size', 'Pack','UltimateTorqueMin']
     missing_columns = [col for col in required_columns if col not in df_data.columns]
     if missing_columns:
         error_msg = f"Missing required columns: {missing_columns}"
@@ -425,7 +428,8 @@ def part_tbl(df_data):
                       'BandThickness': sqlalchemy.types.Float, 'BandWidth': sqlalchemy.types.Float,
                       'CamInspect': sqlalchemy.types.VARCHAR(255), 'ScrDrvChk': sqlalchemy.types.VARCHAR(255),
                       'Cutout1': sqlalchemy.types.Float, 'Drawing': sqlalchemy.types.VARCHAR(255),
-                      'Size': sqlalchemy.types.VARCHAR(255), 'Pack': sqlalchemy.types.VARCHAR(255)}
+                      'Size': sqlalchemy.types.VARCHAR(255), 'Pack': sqlalchemy.types.VARCHAR(255),
+                      'UltimateTorqueMin': sqlalchemy.types.Float}
     try:
         df_data.to_sql('parts_clamps', engine, schema='production', if_exists='replace', index=False,
                          dtype=data_type_dict)
