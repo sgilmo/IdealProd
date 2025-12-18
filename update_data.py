@@ -245,6 +245,14 @@ def _build_components_dataframe(raw_records: list) -> pd.DataFrame:
     # Drop any rows missing required fields before numeric conversion
     df_inv = df_inv.dropna(subset=COMPONENTS_COLUMNS)
 
+    # Remove "00" from ITEMID if it starts with 8, is 7 chars long, and ends with 00
+    mask = (
+            df_inv["ITMID"].str.startswith("8") &
+            (df_inv["ITMID"].str.len() == 7) &
+            df_inv["ITMID"].str.endswith("00")
+    )
+    df_inv.loc[mask, "ITMID"] = df_inv.loc[mask, "ITMID"].str[:-2]
+
     # Convert QTY to numeric, coercing invalid entries to NaN
     df_inv["QTY"] = pd.to_numeric(df_inv["QTY"], errors="coerce")
 
