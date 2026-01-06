@@ -108,7 +108,7 @@ class NetworkChecker:
         logger.info(f"Network check completed in {duration:.2f} seconds")
 
     def get_offline_devices(self) -> List[NetworkDevice]:
-        """Return list of offline devices."""
+        """Return a list of offline devices."""
         return [device for device in self.devices if device.status != "Online"]
 
     def print_results(self) -> None:
