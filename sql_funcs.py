@@ -87,8 +87,8 @@ def update_dbusage(data: list):
     update_database(data, TRUNCATE_TBLUSAGE, INSERT_USAGE)
 
 def update_dbprod(data: list):
-    """Update Spare Part Usage Data."""
-    print("Updating Spare Part Production Data...")
+    """Update Production Data."""
+    print("Updating Production Data...")
     update_database(data, TRUNCATE_TBLPROD, INSERT_PROD)
 
 
