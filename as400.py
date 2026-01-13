@@ -5,6 +5,8 @@
 
 import pyodbc
 import logging
+import common_funcs
+from datetime import datetime
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,6 +26,7 @@ TABLE_FPSPRMAST1 = "PROD.FPSPRMAST1"
 TABLE_FPSPRMAST2 = "PROD.FPSPRMAST2"
 TABLE_DMFMOMRID1 = "PROD.DMFMOMRID1"
 FACILITY = 9
+WEEK_NUMBER = common_funcs.get_custom_week_number(datetime.today())
 
 
 def connect_to_db():
@@ -170,7 +173,7 @@ def get_prod():
                            PROD.{table}.IDEB_MONTH
                     FROM PROD.{table}
                     WHERE PROD.{table}.IDEB_LOC = {FACILITY}
-                    AND (PROD.{table}.IDEB_WEEK >= WEEK_ISO(CURRENT DATE) - 3 OR WEEK_ISO(CURRENT DATE) <= 3)
+                    AND (PROD.{table}.IDEB_WEEK >= {WEEK_NUMBER} - 3 OR {WEEK_NUMBER} <= 3)
                     AND PROD.{table}.IDEB_TOTAL_QTY > 0
                 """
             result = process_query_result(cursor, query_sql, f"AS400 Usage Records from {table}")
