@@ -71,6 +71,8 @@ def main() -> None:
     output_path = f"{OUTPUT_PATH}{OUTPUT_FILENAME}"
     create_csv_file(employee_data, output_path)
 
+    # Update Scrap Table
+    as400.build_scrap_table()
 
 if __name__ == "__main__":
     main()
