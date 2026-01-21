@@ -50,8 +50,8 @@ FASTLOK_BASE_PATH = "\\\\tn-file02\\tooling\\2874 PREFORM CLAMP AUTOMATION\\Visi
 # Machine configurations
 MACHINE_CONFIGS = {
     'acm': {
-        'machines': ('LACM384', 'ACM357', 'LACM386', 'ACM372', 'LACM383', 'LACM385', 'LACM391',
-                     'ACM366', 'LACM382', 'LACM381', 'ACM362', 'LACM390', 'ACM373', 'ACM374',
+        'machines': ('LACM384', 'ACM357', 'LACM386', 'ACM372', 'LACM383', 'LACM391',
+                     'ACM366', 'LACM382', 'LACM381', 'ACM362', 'LACM390', 'ACM374',
                      'ACM375', 'ACM376', 'ACM361', 'ACM365'),
         'file_paths': [
             {'source_suffix': 'FailedScrews\\', 'destination': ACM_DESTINATION_PATH}
