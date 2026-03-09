@@ -81,7 +81,8 @@ sql_bands = """
     SELECT "Band Part Number","Material Spec Number", "Number of Notches",
         "Band Stamp Part Number A", "Die A Part Number","Die B Part Number","Die C Part Number","Die D Part Number",
         "Width", "Thickness", "Abutment Punch Data", "A Notches Removed", "B Notches Removed",
-        "Tang Length Number"
+        "Tang Length Number", "Band Length", "Feed Length", "Dim A", "Dim B", "Dim C", "Dim D", "Die A Note", 
+        "Die B Note", "Die C Note", "Die D Note"
     FROM BANDS
 """
 # Set Some Constants
@@ -89,7 +90,8 @@ HOSTNAME = socket.gethostname()
 BAND_COLUMNS = [
     'PartNumber', 'MatSpec', 'NumNotches', 'BandStampPnA', 'DiePnA', 'DiePnB',
     'DiePnC', 'DiePnD', 'Width', 'Thickness', 'AbutPunch', 'ANotchesRemoved',
-    'BNotchesRemoved', 'TangLength'
+    'BNotchesRemoved', 'TangLength', 'BandLength', 'FeedLength', 'DimA', 'DimB', 'DimC', 'DimD', 'DieANote',
+    'DieBNote', 'DieCNote', 'DieDNote'
 ]
 
 BAND_DTYPE_MAP = {
@@ -107,6 +109,16 @@ BAND_DTYPE_MAP = {
     'ANotchesRemoved': float,
     'BNotchesRemoved': float,
     'TangLength': float,
+    'BandLength': float,
+    'FeedLength': float,
+    'DimA': float,
+    'DimB': float,
+    'DimC': float,
+    'DimD': float,
+    'DieANote': str,
+    'DieBNote': str,
+    'DieCNote': str,
+    'DieDNote': str,
 }
 
 BAND_NUMERIC_DEFAULTS = {
@@ -116,6 +128,12 @@ BAND_NUMERIC_DEFAULTS = {
     'ANotchesRemoved': 0,
     'BNotchesRemoved': 0,
     'TangLength': 0,
+    'BandLength': 0,
+    'FeedLength': 0,
+    'DimA': 0,
+    'DimB': 0,
+    'DimC': 0,
+    'DimD': 0,
 }
 
 PARTS_COLUMNS = [
@@ -389,6 +407,12 @@ def bands_df() -> pd.DataFrame:
     df_bands['Thickness'] = df_bands['Thickness'].round(3)
     df_bands['TangLength'] = df_bands['TangLength'].round(2)
     df_bands['NumNotches'] = df_bands['NumNotches'].round(0)
+    df_bands['FeedLength'] = df_bands['FeedLength'].round(3)
+    df_bands['BandLength'] = df_bands['BandLength'].round(3)
+    df_bands['DimA'] = df_bands['DimA'].round(3)
+    df_bands['DimB'] = df_bands['DimB'].round(3)
+    df_bands['DimC'] = df_bands['DimC'].round(3)
+    df_bands['DimD'] = df_bands['DimD'].round(3)
 
     # Fill missing numeric values with safe defaults
     df_bands.fillna(BAND_NUMERIC_DEFAULTS, inplace=True)
@@ -469,7 +493,8 @@ def band_tbl(df_data):
     required_columns = ['PartNumber', 'MatSpec', 'NumNotches', 'BandStampPnA',
                        'DiePnA', 'DiePnB', 'DiePnC', 'DiePnD', 'Width',
                        'Thickness', 'AbutPunch', 'ANotchesRemoved',
-                       'BNotchesRemoved', 'TangLength']
+                       'BNotchesRemoved', 'TangLength', 'BandLength', 'FeedLength',
+                        'DimA', 'DimB', 'DimC', 'DimD', 'DieANote', 'DieBNote', 'DieCNote', 'DieDNote']
     missing_columns = [col for col in required_columns if col not in df_data.columns]
     if missing_columns:
         error_msg = f"Missing required columns: {missing_columns}"
@@ -482,7 +507,12 @@ def band_tbl(df_data):
                       'DiePnC': sqlalchemy.types.VARCHAR(255), 'DiePnD': sqlalchemy.types.VARCHAR(255),
                       'Width': sqlalchemy.types.Float, 'Thickness': sqlalchemy.types.Float,
                       'AbutPunch': sqlalchemy.types.VARCHAR(255), 'ANotchesRemoved': sqlalchemy.types.Float,
-                      'BNotchesRemoved': sqlalchemy.types.Float, 'TangLength': sqlalchemy.types.Float}
+                      'BNotchesRemoved': sqlalchemy.types.Float, 'TangLength': sqlalchemy.types.Float,
+                      'BandLength': sqlalchemy.types.Float, 'FeedLength': sqlalchemy.types.Float,
+                      'DimA': sqlalchemy.types.Float, 'DimB': sqlalchemy.types.Float,
+                      'DimC': sqlalchemy.types.Float, 'DimD': sqlalchemy.types.Float,
+                      'DieANote': sqlalchemy.types.VARCHAR(255), 'DieBNote': sqlalchemy.types.VARCHAR(255),
+                      'DieCNote': sqlalchemy.types.VARCHAR(255), 'DieDNote': sqlalchemy.types.VARCHAR(255)}
     try:
         df_data.to_sql('tblBands', engine, schema='eng', if_exists='replace', index=False,
                          dtype=data_type_dict)
