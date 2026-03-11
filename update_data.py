@@ -242,7 +242,7 @@ def pull_data(conn,qry):
             try:
                 print("Connect/Query Time = " + str(round((timer() - start), 3)) + " sec")
                 dbcnxn.close()
-            except:
+            except pyodbc.Error:
                 pass  # Handle case where connection wasn't established
 
     return result
