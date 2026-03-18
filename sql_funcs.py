@@ -22,8 +22,11 @@ INSERT_PROD = """INSERT INTO eng.tblProd_temp (IDEB_WEEK, IDEB_DAY, IDEB_DEPT, I
                     IDEB_PART, IDEB_TICKET_NBR, IDEB_TOTAL_QTY, IDEB_STANDARD, IDEB_ACTUAL_HOURS, IDEB_OVERTIME_HOURS, 
                     IDEB_MONTH) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
-INSERT_ORDERS = """INSERT INTO dbo.tblOrders (OrderNum, PartNumber, Qty, Machine) VALUES (?, ?, ?, LEFT(?,3))"""
-INSERT_ALL_ORDERS = """INSERT INTO dbo.tblOrdersAll (OrderNum, PartNumber, Qty, Note) VALUES (?, ?, ?, ?)"""
+INSERT_ORDERS = """INSERT INTO dbo.tblOrders (OrderNum, PartNumber, Qty, Machine, EntryDate, StartDate, DueDate) 
+                   VALUES (?, ?, ?, LEFT(?,3), dbo.JulianToDate(?), dbo.JulianToDate(?), dbo.JulianToDate(?))
+                   """
+INSERT_ALL_ORDERS = """INSERT INTO dbo.tblOrdersAll (OrderNum, PartNumber, Qty, Note, EntryDate, StartDate, DueDate) 
+                       VALUES (?, ?, ?, ?, dbo.JulianToDate(?), dbo.JulianToDate(?), dbo.JulianToDate(?))"""
 
 # Database connection settings
 CONNECTION_STRING = (
