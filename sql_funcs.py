@@ -1,10 +1,12 @@
 import pyodbc
 import os
+import common_funcs
 from urllib import parse
 from sqlalchemy import create_engine
 from sqlalchemy import text
 
 # Constants
+EMAIL_RECIPIENTS = ["elab@idealtridon.com"]
 TRUNCATE_EMPLOYEE_TABLE = "TRUNCATE TABLE production.EMPLOYEE"
 TRUNCATE_TBLUSAGE = "TRUNCATE TABLE dbo.tblUsage_temp"
 TRUNCATE_TBLPROD = "TRUNCATE TABLE eng.tblProd_temp"
@@ -82,6 +84,12 @@ def update_database(data: list, truncate_query: str, insert_query: str):
         print(f"{len(data)} Records Processed")
     except Exception as e:
         print(f"SQL Query Failed: {e}")
+        common_funcs.build_email2(
+            body_data=f"SQL Query Failed: {e}",
+            subject="SQL Query Failure",
+            message_header="Query Failed for the Following reason:\n\n",
+            mailto=EMAIL_RECIPIENTS
+        )
 
 
 def update_dbusage(data: list):
