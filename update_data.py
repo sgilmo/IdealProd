@@ -6,6 +6,7 @@ import csv
 import pandas as pd
 import as400
 import sql_funcs
+import common_funcs
 import pyodbc
 import os
 import socket
@@ -232,9 +233,21 @@ def pull_data(conn,qry):
         except Exception as e:
             msg = conn + ' Query Failed: ' + str(e)
             print(msg)
+            common_funcs.build_email2(
+                body_data= msg,
+                subject="SQL Query Failure",
+                message_header="Query Failed for the Following reason:\n\n",
+                mailto=sql_funcs.EMAIL_RECIPIENTS
+            )
     except pyodbc.Error as e:
         msg = conn + ' Connection Failed: ' + str(e)
         print(msg)
+        common_funcs.build_email2(
+            body_data= msg,
+            subject="SQL Connection Failure",
+            message_header="Connection Failed for the Following reason:\n\n",
+            mailto=sql_funcs.EMAIL_RECIPIENTS
+        )
     finally:
         if msg:
             print(msg)
