@@ -262,7 +262,7 @@ def pull_data(conn,qry):
 
 def _build_components_dataframe(raw_records: list) -> pd.DataFrame:
     """
-    Build the components inventory DataFrame from raw AS400 records.
+    Build the dataframe containing the inventory of components from raw AS400 records.
 
     This function is responsible only for shaping, cleaning, and casting
     the data into the expected schema.
@@ -317,7 +317,7 @@ def comp_df() -> pd.DataFrame:
     return _build_components_dataframe(raw_records)
 
 def parts_df() -> pd.DataFrame:
-    """Build and clean Parts DataFrame from FileMaker source."""
+    """Build and clean Parts DataFrame from the FileMaker source."""
     print("Getting Data From Filemaker")
     raw_data = pull_data(CONNFM, sql_parts)
 
@@ -325,6 +325,7 @@ def parts_df() -> pd.DataFrame:
         print("Warning: No data retrieved from Filemaker")
         return pd.DataFrame()
 
+    raw_data = tuple(map(lambda x: x, raw_data))
     # Build initial DataFrame with explicit columns
     df_parts = pd.DataFrame.from_records(raw_data, columns=PARTS_COLUMNS)
 
@@ -345,7 +346,7 @@ def parts_df() -> pd.DataFrame:
     for column in REQUIRED_NON_NONE_COLUMNS:
         df_parts = df_parts[df_parts[column] != "None"]
 
-    # Normalize case for inspection / screw-driver check flags
+    # Normalize case for inspection / screwdriver check flags
     df_parts["CamInspect"] = df_parts["CamInspect"].str.upper()
     df_parts["ScrDrvChk"] = df_parts["ScrDrvChk"].str.upper()
 
@@ -398,6 +399,7 @@ def bands_df() -> pd.DataFrame:
         print("Warning: No data retrieved from Filemaker")
         return pd.DataFrame()
 
+    data = tuple(map(lambda x: x, data))
     df_bands = pd.DataFrame.from_records(data)
     df_bands.columns = BAND_COLUMNS
 
@@ -562,15 +564,15 @@ def comp_tbl(df_data):
 
 def save_dataframe_to_csv(df_data, filename, output_path=CSV_OUTPUT_PATH):
     """
-    Save DataFrame to CSV file.
+    Save DataFrame to the CSV file.
 
     Args:
         df_data: DataFrame to save
-        filename: Name of the CSV file (without path)
-        output_path: Directory path where file will be saved
+        filename: Name of the CSV file (without the path)
+        output_path: Directory path where the file will be saved
 
     Returns:
-        str: Full path of saved file or None on error
+        str: Full path of the saved file or None on error
     """
     if df_data.empty:
         print(f"Warning: Empty DataFrame, skipping CSV export for {filename}")
