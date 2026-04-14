@@ -50,7 +50,7 @@ conn_sql = engine.connect()
 
 # Define Some SQL Statements
 
-sql_inv = """
+sql_inv_09 = """
 SELECT
     STRIP(y.itmid),
     b.qty,
@@ -65,6 +65,66 @@ WHERE
     AND x.itmid = b.itmid
     AND x.plt = b.plt
     AND b.plt = '09'
+    AND qty <> 0
+    AND x.COSTID = 'FRZ'
+    AND x.plt NOT IN ('53', '54', '55', '56', '59')
+"""
+
+sql_inv_03 = """
+SELECT
+    STRIP(y.itmid),
+    b.qty,
+    STRIP(y.itmdesc),
+    STRIP(SUBSTR (Altdesc, 15, 1)) Class
+FROM
+    CCSDTA.DCSCIM y,
+    CCSDTA.DMFCMAR x,
+    CCSDTA.DCSILM b
+WHERE
+    x.itmid = y.itmid
+    AND x.itmid = b.itmid
+    AND x.plt = b.plt
+    AND b.plt = '03'
+    AND qty <> 0
+    AND x.COSTID = 'FRZ'
+    AND x.plt NOT IN ('53', '54', '55', '56', '59')
+"""
+
+sql_inv_08 = """
+SELECT
+    STRIP(y.itmid),
+    b.qty,
+    STRIP(y.itmdesc),
+    STRIP(SUBSTR (Altdesc, 15, 1)) Class
+FROM
+    CCSDTA.DCSCIM y,
+    CCSDTA.DMFCMAR x,
+    CCSDTA.DCSILM b
+WHERE
+    x.itmid = y.itmid
+    AND x.itmid = b.itmid
+    AND x.plt = b.plt
+    AND b.plt = '08'
+    AND qty <> 0
+    AND x.COSTID = 'FRZ'
+    AND x.plt NOT IN ('53', '54', '55', '56', '59')
+"""
+
+sql_inv_06 = """
+SELECT
+    STRIP(y.itmid),
+    b.qty,
+    STRIP(y.itmdesc),
+    STRIP(SUBSTR (Altdesc, 15, 1)) Class
+FROM
+    CCSDTA.DCSCIM y,
+    CCSDTA.DMFCMAR x,
+    CCSDTA.DCSILM b
+WHERE
+    x.itmid = y.itmid
+    AND x.itmid = b.itmid
+    AND x.plt = b.plt
+    AND b.plt = '06'
     AND qty <> 0
     AND x.COSTID = 'FRZ'
     AND x.plt NOT IN ('53', '54', '55', '56', '59')
@@ -303,12 +363,12 @@ def _build_components_dataframe(raw_records: list) -> pd.DataFrame:
     return df_inv
 
 
-def comp_df() -> pd.DataFrame:
+def comp_df(sql_qry) -> pd.DataFrame:
     """
     Retrieve component inventory data from AS400 and return it as a cleaned DataFrame.
     """
     print("Getting component inventory data from AS400")
-    raw_records = pull_data(CONNAS400_CCSDTA, sql_inv)
+    raw_records = pull_data(CONNAS400_CCSDTA, sql_qry)
 
     if not raw_records:
         print("Warning: No component inventory data retrieved from AS400")
@@ -536,7 +596,7 @@ def band_tbl(df_data):
         print(f"Error inserting data into eng.tblBands: {e}")
         raise  # Re-raise the exception so caller can handle it
 
-def comp_tbl(df_data):
+def comp_tbl(df_data, tbl_name):
     # Build Components Table
     print('Build Component SQL Table')
     if df_data.empty:
@@ -555,11 +615,11 @@ def comp_tbl(df_data):
                       'ITMDESC': sqlalchemy.types.VARCHAR(255),
                       'CLASS': sqlalchemy.types.VARCHAR(255)}
     try:
-        df_data.to_sql('tblInvAll', engine, schema='production', if_exists='replace', index=False,
+        df_data.to_sql(tbl_name, engine, schema='production', if_exists='replace', index=False,
                          dtype=data_type_dict)
-        print(f"Successfully inserted {len(df_data)} records into tblCompInv")
+        print(f"Successfully inserted {len(df_data)} records into {tbl_name}")
     except Exception as e:
-        print(f"Error inserting data into tblCompInv: {e}")
+        print(f"Error inserting data into {tbl_name}: {e}")
 
 
 def save_dataframe_to_csv(df_data, filename, output_path=CSV_OUTPUT_PATH):
@@ -614,12 +674,19 @@ def main():
         get_orders()
         # Get data
         df_parts = parts_df()
-        df_components = comp_df()
+        df_comp_03 = comp_df(sql_inv_03)
+        df_comp_06 = comp_df(sql_inv_06)
+        df_comp_08 = comp_df(sql_inv_08)
+        df_comp_09 = comp_df(sql_inv_09)
         df_bands = bands_df()
 
         # Save to SQL Server
         part_tbl(df_parts)
-        comp_tbl(df_components)
+        comp_tbl(df_comp_09, 'tblInv09')
+        comp_tbl(df_comp_09, 'tblInvAll')
+        comp_tbl(df_comp_03, 'tblInv03')
+        comp_tbl(df_comp_06, 'tblInv06')
+        comp_tbl(df_comp_08, 'tblInv08')
         band_tbl(df_bands)
 
         # Save to CSV files
