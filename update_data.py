@@ -55,7 +55,9 @@ SELECT
     STRIP(y.itmid),
     b.qty,
     STRIP(y.itmdesc),
-    STRIP(SUBSTR (Altdesc, 15, 1)) Class
+    STRIP(SUBSTR (Altdesc, 15, 1)) Class,
+    STRIP(b.MAJLOC),
+    STRIP(b.MINLOC)
 FROM
     CCSDTA.DCSCIM y,
     CCSDTA.DMFCMAR x,
@@ -75,7 +77,9 @@ SELECT
     STRIP(y.itmid),
     b.qty,
     STRIP(y.itmdesc),
-    STRIP(SUBSTR (Altdesc, 15, 1)) Class
+    STRIP(SUBSTR (Altdesc, 15, 1)) Class,
+    STRIP(b.MAJLOC),
+    STRIP(b.MINLOC)
 FROM
     CCSDTA.DCSCIM y,
     CCSDTA.DMFCMAR x,
@@ -95,7 +99,9 @@ SELECT
     STRIP(y.itmid),
     b.qty,
     STRIP(y.itmdesc),
-    STRIP(SUBSTR (Altdesc, 15, 1)) Class
+    STRIP(SUBSTR (Altdesc, 15, 1)) Class,
+    STRIP(b.MAJLOC),
+    STRIP(b.MINLOC)
 FROM
     CCSDTA.DCSCIM y,
     CCSDTA.DMFCMAR x,
@@ -115,7 +121,9 @@ SELECT
     STRIP(y.itmid),
     b.qty,
     STRIP(y.itmdesc),
-    STRIP(SUBSTR (Altdesc, 15, 1)) Class
+    STRIP(SUBSTR (Altdesc, 15, 1)) Class,
+    STRIP(b.MAJLOC),
+    STRIP(b.MINLOC)
 FROM
     CCSDTA.DCSCIM y,
     CCSDTA.DMFCMAR x,
@@ -263,12 +271,14 @@ HEX_SIZE_NORMALIZATION = {
     "10 mm SS MX ONLY": "10 mm",
 }
 
-COMPONENTS_COLUMNS = ["ITMID", "QTY", "ITMDESC", "CLASS"]
+COMPONENTS_COLUMNS = ["ITMID", "QTY", "ITMDESC", "CLASS", "MAJLOC", "MINLOC"]
 COMPONENTS_DTYPE = {
     "ITMID": str,
     "QTY": int,
     "ITMDESC": str,
     "CLASS": str,
+    "MAJLOC": str,
+    "MINLOC": str,
 }
 # File path constants
 CSV_OUTPUT_PATH = 'C:\\Inetpub\\ftproot\\acmparts\\'  # Change to the appropriate output directory
@@ -613,7 +623,9 @@ def comp_tbl(df_data, tbl_name):
 
     data_type_dict = {'ITMID': sqlalchemy.types.VARCHAR(255), 'QTY': sqlalchemy.types.INT,
                       'ITMDESC': sqlalchemy.types.VARCHAR(255),
-                      'CLASS': sqlalchemy.types.VARCHAR(255)}
+                      'CLASS': sqlalchemy.types.VARCHAR(255),
+                      'MAJLOC': sqlalchemy.types.VARCHAR(255),
+                      'MINLOC': sqlalchemy.types.VARCHAR(255),}
     try:
         df_data.to_sql(tbl_name, engine, schema='production', if_exists='replace', index=False,
                          dtype=data_type_dict)
