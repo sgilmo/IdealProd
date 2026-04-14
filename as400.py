@@ -54,7 +54,12 @@ conn_sql = engine.connect()
 TABLE_FPSPRMAST1 = "PROD.FPSPRMAST1"
 TABLE_FPSPRMAST2 = "PROD.FPSPRMAST2"
 TABLE_DMFMOMRID1 = "PROD.DMFMOMRID1"
-FACILITY = 9
+PLANT_03 = 3
+PLANT_06 = 6
+PLANT_08 = 8
+PLANT_09 = 9
+
+
 WEEK_NUMBER = common_funcs.get_custom_week_number(datetime.today())
 
 def date_to_julian(date_obj):
@@ -389,7 +394,7 @@ def get_inv():
         FROM {TABLE_FPSPRMAST1}
         INNER JOIN {TABLE_FPSPRMAST2}
         ON {TABLE_FPSPRMAST1}.SPH_PART = {TABLE_FPSPRMAST2}.SPD_PART
-        WHERE {TABLE_FPSPRMAST2}.SPD_FACIL = {FACILITY}
+        WHERE {TABLE_FPSPRMAST2}.SPD_FACIL = {PLANT_09}
     """
     with connect_to_db() as db_connection:
         cursor = db_connection.cursor()
@@ -428,7 +433,7 @@ def get_usage():
                        PROD.{table}.SPU_STDCST,
                        ROUND(PROD.{table}.SPU_TRNQTY * PROD.{table}.SPU_STDCST, 2)
                 FROM PROD.{table}
-                WHERE PROD.{table}.SPU_FACIL = {FACILITY}
+                WHERE PROD.{table}.SPU_FACIL = {PLANT_09}
                 AND STRIP(PROD.{table}.SPU_USECC) IS NOT NULL
             """
             result = process_query_result(cursor, query_sql, f"AS400 Usage Records from {table}")
@@ -459,7 +464,7 @@ def get_prod():
                            PROD.{table}.IDEB_OVERTIME_HOURS,
                            PROD.{table}.IDEB_MONTH
                     FROM PROD.{table}
-                    WHERE PROD.{table}.IDEB_LOC = {FACILITY}
+                    WHERE PROD.{table}.IDEB_LOC = {PLANT_09}
                     AND (PROD.{table}.IDEB_WEEK >= {WEEK_NUMBER} - 3 OR {WEEK_NUMBER} <= 3)
                     AND PROD.{table}.IDEB_TOTAL_QTY > 0
                 """
