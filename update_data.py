@@ -691,8 +691,7 @@ def comp_tbl(df_data, tbl_name):
                       'MAJLOC': sqlalchemy.types.VARCHAR(255),
                       'MINLOC': sqlalchemy.types.VARCHAR(255),}
     try:
-        df_data.to_sql(tbl_name, engine, schema='production', if_exists='replace', index=False,
-                         dtype=data_type_dict)
+        df_data.to_sql(tbl_name, engine, schema='production', if_exists='replace', index=False, dtype=data_type_dict)
         print(f"Successfully inserted {len(df_data)} records into {tbl_name}")
     except Exception as e:
         print(f"Error inserting data into {tbl_name}: {e}")
