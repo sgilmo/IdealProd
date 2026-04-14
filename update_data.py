@@ -286,6 +286,21 @@ if HOSTNAME == 'BNAWS625':
     CSV_OUTPUT_PATH = 'Y:\\Inetpub\\ftproot\\acmparts\\'  # Change to the appropriate output directory
 
 def pull_data(conn,qry):
+    """
+    Pulls data from a database by executing a given SQL query on a specified connection string.
+
+    This function establishes a connection to a database using the provided connection string,
+    executes the supplied SQL query, and retrieves the results. It includes error handling for
+    both connection and query execution failures, with optional mechanisms to send email
+    notifications in case of errors.
+
+    :param conn: A connection string used to connect to the database.
+    :type conn: str
+    :param qry: The SQL query to be executed on the database.
+    :type qry: str
+    :return: A list of query results fetched from the database.
+    :rtype: list
+    """
     # Connection with error handling and connection management
     result = []
     start = 0
@@ -375,7 +390,17 @@ def _build_components_dataframe(raw_records: list) -> pd.DataFrame:
 
 def comp_df(sql_qry) -> pd.DataFrame:
     """
-    Retrieve component inventory data from AS400 and return it as a cleaned DataFrame.
+    Retrieves and processes component inventory data from an AS400 database.
+
+    This function fetches raw component inventory data from an AS400 system using the
+    provided SQL query string. If data is successfully retrieved, it is processed into a
+    pandas DataFrame. If no data is retrieved, an empty DataFrame with predefined columns
+    is returned.
+
+    :param sql_qry: SQL query string used to retrieve component inventory data
+    :type sql_qry: str
+    :return: A pandas DataFrame containing the processed component inventory data
+    :rtype: pd.DataFrame
     """
     print("Getting component inventory data from AS400")
     raw_records = pull_data(CONNAS400_CCSDTA, sql_qry)
@@ -387,7 +412,19 @@ def comp_df(sql_qry) -> pd.DataFrame:
     return _build_components_dataframe(raw_records)
 
 def parts_df() -> pd.DataFrame:
-    """Build and clean Parts DataFrame from the FileMaker source."""
+    """
+    Transforms raw data retrieved from FileMaker into a structured and clean DataFrame of parts.
+
+    This function pulls data from a FileMaker database using a predefined connection and SQL query.
+    The raw data is processed through several cleaning, filtering, and normalization steps to
+    generate a structured pandas DataFrame. It ensures the data adheres to specific formatting
+    rules, handles missing or invalid values, and prepares it for further analysis or usage.
+
+    :returns: A cleaned and processed pandas DataFrame containing parts information.
+              If no valid data is available or errors occur during transformation,
+              an empty DataFrame is returned.
+    :rtype: pd.DataFrame
+    """
     print("Getting Data From Filemaker")
     raw_data = pull_data(CONNFM, sql_parts)
 
@@ -441,7 +478,19 @@ def parts_df() -> pd.DataFrame:
 
 def _clean_string_columns(df) -> pd.DataFrame:
     """
-    Trim whitespace and remove quotes from all string columns in the given DataFrame.
+    Cleans string columns in the given DataFrame by applying transformations such as stripping
+    leading and trailing whitespace and removing specific characters like quotes.
+
+    This function identifies all columns in the DataFrame with type `object`, processes
+    them by removing unnecessary whitespace and quotes, and returns the cleaned DataFrame.
+    If there are no string columns in the input DataFrame, the function returns the original
+    DataFrame without any modifications.
+
+    :param df: The input pandas DataFrame whose object-type columns need to be cleaned.
+    :type df: pd.DataFrame
+    :return: A pandas DataFrame with cleaned string columns. The original DataFrame is
+        returned if no object-type columns are present.
+    :rtype: pd.DataFrame
     """
     string_cols = df.select_dtypes(include=['object']).columns
     if not len(string_cols):
@@ -607,6 +656,21 @@ def band_tbl(df_data):
         raise  # Re-raise the exception so caller can handle it
 
 def comp_tbl(df_data, tbl_name):
+    """
+    Builds a component SQL table from the provided DataFrame. Validates necessary columns, converts
+    data types where applicable, and inserts the data into the specified SQL table. Stops execution
+    if the DataFrame is empty or required columns are missing.
+
+    :param df_data: The DataFrame containing component data to be processed. It must include the
+        following required columns: 'ITMID', 'QTY', 'ITMDESC', and 'CLASS'. Extra columns will be
+        handled if they are included in `data_type_dict`.
+    :type df_data: pandas.DataFrame
+
+    :param tbl_name: The name of the SQL table where the data should be inserted.
+    :type tbl_name: str
+
+    :return: None
+    """
     # Build Components Table
     print('Build Component SQL Table')
     if df_data.empty:
@@ -672,6 +736,17 @@ def save_dataframe_to_csv(df_data, filename, output_path=CSV_OUTPUT_PATH):
 
 
 def get_orders():
+    """
+    Fetches and updates orders data from multiple sources.
+
+    This function interacts with external systems to retrieve orders
+    and then updates them in the database. It performs the following
+    actions sequentially:
+      - Retrieves current orders and updates them in the database.
+      - Retrieves all completed orders and updates them in the database.
+
+    :return: None
+    """
     # Main Function
     orders = as400.get_orders()
     sql_funcs.update_orders(orders)
@@ -681,6 +756,15 @@ def get_orders():
     return
 
 def main():
+    """
+    Executes the main application flow required to manage and persist data for parts,
+    components, and bands. The process involves fetching required data, processing it,
+    and saving the results into both databases and CSV files, while handling potential
+    errors and ensuring cleanup.
+
+    :raises Exception: If an error occurs during the execution of the main workflow.
+    :return: None
+    """
     try:
         # Get Orders
         get_orders()
