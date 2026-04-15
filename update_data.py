@@ -11,9 +11,8 @@ import pyodbc
 import os
 import socket
 import sqlalchemy.types
-from sqlalchemy import create_engine
-from urllib import parse
 from timeit import default_timer as timer
+from typing import Mapping, Hashable, Any
 
 # Define Database Connections
 
@@ -37,106 +36,8 @@ PWD=SMY;
 
 CONNFM = 'DSN=FM Clamp ODBC;UID=FMODBC;PWD=FMODBC'
 
-server = 'tn-sql'
-database = 'autodata'
-driver = 'ODBC+Driver+17+for+SQL+Server'
-user = 'production'
-pwd = parse.quote_plus("Auto@matics")
-port = '1433'
-database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
-# Make Connection
-engine = create_engine(database_conn)
-conn_sql = engine.connect()
-
 # Define Some SQL Statements
 
-sql_inv_09 = """
-SELECT
-    STRIP(y.itmid),
-    b.qty,
-    STRIP(y.itmdesc),
-    STRIP(SUBSTR (Altdesc, 15, 1)) Class,
-    STRIP(b.MAJLOC),
-    STRIP(b.MINLOC)
-FROM
-    CCSDTA.DCSCIM y,
-    CCSDTA.DMFCMAR x,
-    CCSDTA.DCSILM b
-WHERE
-    x.itmid = y.itmid
-    AND x.itmid = b.itmid
-    AND x.plt = b.plt
-    AND b.plt = '09'
-    AND qty <> 0
-    AND x.COSTID = 'FRZ'
-    AND x.plt NOT IN ('53', '54', '55', '56', '59')
-"""
-
-sql_inv_03 = """
-SELECT
-    STRIP(y.itmid),
-    b.qty,
-    STRIP(y.itmdesc),
-    STRIP(SUBSTR (Altdesc, 15, 1)) Class,
-    STRIP(b.MAJLOC),
-    STRIP(b.MINLOC)
-FROM
-    CCSDTA.DCSCIM y,
-    CCSDTA.DMFCMAR x,
-    CCSDTA.DCSILM b
-WHERE
-    x.itmid = y.itmid
-    AND x.itmid = b.itmid
-    AND x.plt = b.plt
-    AND b.plt = '03'
-    AND qty <> 0
-    AND x.COSTID = 'FRZ'
-    AND x.plt NOT IN ('53', '54', '55', '56', '59')
-"""
-
-sql_inv_08 = """
-SELECT
-    STRIP(y.itmid),
-    b.qty,
-    STRIP(y.itmdesc),
-    STRIP(SUBSTR (Altdesc, 15, 1)) Class,
-    STRIP(b.MAJLOC),
-    STRIP(b.MINLOC)
-FROM
-    CCSDTA.DCSCIM y,
-    CCSDTA.DMFCMAR x,
-    CCSDTA.DCSILM b
-WHERE
-    x.itmid = y.itmid
-    AND x.itmid = b.itmid
-    AND x.plt = b.plt
-    AND b.plt = '08'
-    AND qty <> 0
-    AND x.COSTID = 'FRZ'
-    AND x.plt NOT IN ('53', '54', '55', '56', '59')
-"""
-
-sql_inv_06 = """
-SELECT
-    STRIP(y.itmid),
-    b.qty,
-    STRIP(y.itmdesc),
-    STRIP(SUBSTR (Altdesc, 15, 1)) Class,
-    STRIP(b.MAJLOC),
-    STRIP(b.MINLOC)
-FROM
-    CCSDTA.DCSCIM y,
-    CCSDTA.DMFCMAR x,
-    CCSDTA.DCSILM b
-WHERE
-    x.itmid = y.itmid
-    AND x.itmid = b.itmid
-    AND x.plt = b.plt
-    AND b.plt = '06'
-    AND qty <> 0
-    AND x.COSTID = 'FRZ'
-    AND x.plt NOT IN ('53', '54', '55', '56', '59')
-"""
 
 sql_parts = """
     SELECT Ourpart,"Band A Part Number", "Housing A Part Number",
@@ -388,22 +289,41 @@ def _build_components_dataframe(raw_records: list) -> pd.DataFrame:
     return df_inv
 
 
-def comp_df(sql_qry) -> pd.DataFrame:
+def comp_df(plant) -> pd.DataFrame:
     """
     Retrieves and processes component inventory data from an AS400 database.
 
     This function fetches raw component inventory data from an AS400 system using the
-    provided SQL query string. If data is successfully retrieved, it is processed into a
+    provided plant number. If data is successfully retrieved, it is processed into a
     pandas DataFrame. If no data is retrieved, an empty DataFrame with predefined columns
     is returned.
 
-    :param sql_qry: SQL query string used to retrieve component inventory data
-    :type sql_qry: str
+    :param plant: Plant identifier for the component inventory data
     :return: A pandas DataFrame containing the processed component inventory data
     :rtype: pd.DataFrame
     """
-    print("Getting component inventory data from AS400")
-    raw_records = pull_data(CONNAS400_CCSDTA, sql_qry)
+
+    sql_inv = f"""
+                 SELECT STRIP(y.itmid), \
+                        b.qty, \
+                        STRIP(y.itmdesc), \
+                        STRIP(SUBSTR(Altdesc, 15, 1)) Class, \
+                        STRIP(b.MAJLOC), \
+                        STRIP(b.MINLOC)
+                 FROM CCSDTA.DCSCIM y, \
+                      CCSDTA.DMFCMAR x, \
+                      CCSDTA.DCSILM b
+                 WHERE x.itmid = y.itmid
+                   AND x.itmid = b.itmid
+                   AND x.plt = b.plt
+                   AND b.plt = {plant}
+                   AND qty <> 0
+                   AND x.COSTID = 'FRZ'
+                   AND x.plt NOT IN ('53', '54', '55', '56', '59') \
+                 """
+
+    print("Getting component inventory data from AS400 for plant: ", plant, "")
+    raw_records = pull_data(CONNAS400_CCSDTA, sql_inv)
 
     if not raw_records:
         print("Warning: No component inventory data retrieved from AS400")
@@ -425,7 +345,7 @@ def parts_df() -> pd.DataFrame:
               an empty DataFrame is returned.
     :rtype: pd.DataFrame
     """
-    print("Getting Data From Filemaker")
+    print("Getting Part Data From Filemaker")
     raw_data = pull_data(CONNFM, sql_parts)
 
     if not raw_data:
@@ -511,7 +431,7 @@ def bands_df() -> pd.DataFrame:
         pandas.DataFrame
             Cleaned bands data, or an empty DataFrame if no data or errors occur.
         """
-    print('Getting Data From Filemaker')
+    print('Getting Band Data From Filemaker')
     data = pull_data(CONNFM, sql_bands)
 
     if not data:
@@ -597,7 +517,7 @@ def part_tbl(df_data):
                       'Size': sqlalchemy.types.VARCHAR(255), 'Pack': sqlalchemy.types.VARCHAR(255),
                       'UltimateTorqueMin': sqlalchemy.types.Float}
     try:
-        df_data.to_sql('parts_clamps', engine, schema='production', if_exists='replace', index=False,
+        df_data.to_sql('parts_clamps', as400.engine, schema='production', if_exists='replace', index=False,
                          dtype=data_type_dict)
         print(f"Successfully inserted {len(df_data)} records into parts_clamps")
     except Exception as e:
@@ -648,7 +568,7 @@ def band_tbl(df_data):
                       'DieANote': sqlalchemy.types.VARCHAR(255), 'DieBNote': sqlalchemy.types.VARCHAR(255),
                       'DieCNote': sqlalchemy.types.VARCHAR(255), 'DieDNote': sqlalchemy.types.VARCHAR(255)}
     try:
-        df_data.to_sql('tblBands', engine, schema='eng', if_exists='replace', index=False,
+        df_data.to_sql('tblBands', as400.engine, schema='eng', if_exists='replace', index=False,
                          dtype=data_type_dict)
         print(f"Successfully inserted {len(df_data)} records into eng.tblBands")
     except Exception as e:
@@ -671,30 +591,41 @@ def comp_tbl(df_data, tbl_name):
 
     :return: None
     """
+
     # Build Components Table
-    print('Build Component SQL Table')
+    print('Building Component SQL Table ' + tbl_name)
+
+    if df_data is None:
+        raise ValueError("df_data cannot be None")
+
+
     if df_data.empty:
         print("Warning: Empty DataFrame, skipping SQL insert")
         return
 
     # Validate required columns exist
-    required_columns = ['ITMID', 'QTY', 'ITMDESC', 'CLASS']
+    required_columns = ['ITMID', 'QTY', 'ITMDESC', 'CLASS', 'MAJLOC', 'MINLOC']
     missing_columns = [col for col in required_columns if col not in df_data.columns]
     if missing_columns:
         error_msg = f"Missing required columns: {missing_columns}"
         print(f"Error: {error_msg}")
         raise ValueError(error_msg)
 
-    data_type_dict = {'ITMID': sqlalchemy.types.VARCHAR(255), 'QTY': sqlalchemy.types.INT,
-                      'ITMDESC': sqlalchemy.types.VARCHAR(255),
-                      'CLASS': sqlalchemy.types.VARCHAR(255),
-                      'MAJLOC': sqlalchemy.types.VARCHAR(255),
-                      'MINLOC': sqlalchemy.types.VARCHAR(255),}
+    data_type_dict: Mapping[Hashable, Any] = {'ITMID': sqlalchemy.types.VARCHAR(255),
+                                              'QTY': sqlalchemy.types.INT,
+                                              'ITMDESC': sqlalchemy.types.VARCHAR(255),
+                                              'CLASS': sqlalchemy.types.VARCHAR(255),
+                                              'MAJLOC': sqlalchemy.types.VARCHAR(255),
+                                              'MINLOC': sqlalchemy.types.VARCHAR(255)
+                                              }
+
+
     try:
-        df_data.to_sql(tbl_name, engine, schema='production', if_exists='replace', index=False, dtype=data_type_dict)
+        df_data.to_sql(tbl_name, as400.engine, schema='production', if_exists='replace', index=False, dtype=data_type_dict)
         print(f"Successfully inserted {len(df_data)} records into {tbl_name}")
     except Exception as e:
         print(f"Error inserting data into {tbl_name}: {e}")
+        raise
 
 
 def save_dataframe_to_csv(df_data, filename, output_path=CSV_OUTPUT_PATH):
@@ -767,22 +698,25 @@ def main():
     try:
         # Get Orders
         get_orders()
-        # Get data
+
+        # Get component data
         df_parts = parts_df()
-        df_comp_03 = comp_df(sql_inv_03)
-        df_comp_06 = comp_df(sql_inv_06)
-        df_comp_08 = comp_df(sql_inv_08)
-        df_comp_09 = comp_df(sql_inv_09)
         df_bands = bands_df()
+        df_comp_03 = comp_df('03')
+        df_comp_06 = comp_df('06')
+        df_comp_08 = comp_df('08')
+        df_comp_09 = comp_df('09')
+
 
         # Save to SQL Server
         part_tbl(df_parts)
+        band_tbl(df_bands)
         comp_tbl(df_comp_09, 'tblInv09')
         comp_tbl(df_comp_09, 'tblInvAll')
         comp_tbl(df_comp_03, 'tblInv03')
         comp_tbl(df_comp_06, 'tblInv06')
         comp_tbl(df_comp_08, 'tblInv08')
-        band_tbl(df_bands)
+
 
         # Save to CSV files
         save_dataframe_to_csv(df_parts, 'parts_clamps.csv')
@@ -793,8 +727,8 @@ def main():
     finally:
         # Close the connection
         if 'conn_sql' in globals():
-            conn_sql.close()
-            engine.dispose()
+            as400.conn_sql.close()
+            as400.engine.dispose()
     return
 
 if __name__ == '__main__':
