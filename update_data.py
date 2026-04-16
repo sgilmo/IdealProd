@@ -186,22 +186,25 @@ CSV_OUTPUT_PATH = 'C:\\Inetpub\\ftproot\\acmparts\\'  # Change to the appropriat
 if HOSTNAME == 'BNAWS625':
     CSV_OUTPUT_PATH = 'Y:\\Inetpub\\ftproot\\acmparts\\'  # Change to the appropriate output directory
 
+
+# noinspection GrazieInspectionRunner
 def pull_data(conn,qry):
+    # noinspection GrazieInspectionRunner
     """
-    Pulls data from a database by executing a given SQL query on a specified connection string.
+        Pulls data from a database by executing a given SQL query on a specified connection string.
 
-    This function establishes a connection to a database using the provided connection string,
-    executes the supplied SQL query, and retrieves the results. It includes error handling for
-    both connection and query execution failures, with optional mechanisms to send email
-    notifications in case of errors.
+        This function establishes a connection to a database using the provided connection string,
+        executes the supplied SQL query, and retrieves the results. It includes error handling for
+        both connection and query execution failures, with optional mechanisms to send email
+        notifications in case of errors.
 
-    :param conn: A connection string used to connect to the database.
-    :type conn: str
-    :param qry: The SQL query to be executed on the database.
-    :type qry: str
-    :return: A list of query results fetched from the database.
-    :rtype: list
-    """
+        :param conn: A connection string is used to connect to the database.
+        :type conn: Str
+        :param qry: The SQL query to be executed on the database.
+        :type qry: Str
+        :return: A list of query results fetched from the database.
+        :rtype: List
+        """
     # Connection with error handling and connection management
     result = []
     start = 0
@@ -289,13 +292,14 @@ def _build_components_dataframe(raw_records: list) -> pd.DataFrame:
     return df_inv
 
 
+# noinspection GrazieInspectionRunner
 def comp_df(plant) -> pd.DataFrame:
     """
     Retrieves and processes component inventory data from an AS400 database.
 
     This function fetches raw component inventory data from an AS400 system using the
     provided plant number. If data is successfully retrieved, it is processed into a
-    pandas DataFrame. If no data is retrieved, an empty DataFrame with predefined columns
+    pandas' DataFrame. If no data is retrieved, an empty DataFrame with predefined columns
     is returned.
 
     :param plant: Plant identifier for the component inventory data
@@ -331,6 +335,8 @@ def comp_df(plant) -> pd.DataFrame:
 
     return _build_components_dataframe(raw_records)
 
+
+# noinspection GrazieInspectionRunner
 def parts_df() -> pd.DataFrame:
     """
     Transforms raw data retrieved from FileMaker into a structured and clean DataFrame of parts.
@@ -396,17 +402,19 @@ def parts_df() -> pd.DataFrame:
     print(f"Processed {len(df_parts)} records")
     return df_parts
 
+
+# noinspection GrazieInspectionRunner
 def _clean_string_columns(df) -> pd.DataFrame:
     """
     Cleans string columns in the given DataFrame by applying transformations such as stripping
     leading and trailing whitespace and removing specific characters like quotes.
 
-    This function identifies all columns in the DataFrame with type `object`, processes
+    This function identifies all columns in the DataFrame with the type `object`, processes
     them by removing unnecessary whitespace and quotes, and returns the cleaned DataFrame.
     If there are no string columns in the input DataFrame, the function returns the original
     DataFrame without any modifications.
 
-    :param df: The input pandas DataFrame whose object-type columns need to be cleaned.
+    :param df: The input pandas DataFrame, whose object-type columns need to be cleaned.
     :type df: pd.DataFrame
     :return: A pandas DataFrame with cleaned string columns. The original DataFrame is
         returned if no object-type columns are present.
@@ -575,9 +583,11 @@ def band_tbl(df_data):
         print(f"Error inserting data into eng.tblBands: {e}")
         raise  # Re-raise the exception so caller can handle it
 
+
+# noinspection GrazieInspectionRunner
 def comp_tbl(df_data, tbl_name):
     """
-    Builds a component SQL table from the provided DataFrame. Validates necessary columns, converts
+    Builds a component SQL table from the provided DataFrame. Validates the necessary columns, converts
     data types where applicable, and inserts the data into the specified SQL table. Stops execution
     if the DataFrame is empty or required columns are missing.
 
@@ -587,7 +597,7 @@ def comp_tbl(df_data, tbl_name):
     :type df_data: pandas.DataFrame
 
     :param tbl_name: The name of the SQL table where the data should be inserted.
-    :type tbl_name: str
+    :type tbl_name: Str
 
     :return: None
     """
