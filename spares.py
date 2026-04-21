@@ -18,6 +18,11 @@ def main():
     # Add only new records to tblUsage
     sql_funcs.update_dbusage(as400.get_usage())
     sql_funcs.sync_usage(schema="dbo", src_table="tblUsage_temp", dst_table="tblUsage")
+
+    # Add only new records to tblUsageM
+    sql_funcs.update_dbusage_mex(as400.get_usage_mex())
+    sql_funcs.sync_usage(schema="dbo", src_table="tblUsageM_temp", dst_table="tblUsageM")
+
     # Add only new records to tblProd
     sql_funcs.update_dbprod(as400.get_prod())
     sql_funcs.sync_usage(schema="eng", src_table="tblProd_temp", dst_table="FPMGFILE")
