@@ -9,6 +9,7 @@ from sqlalchemy import text
 EMAIL_RECIPIENTS = ["elab@idealtridon.com"]
 TRUNCATE_EMPLOYEE_TABLE = "TRUNCATE TABLE production.EMPLOYEE"
 TRUNCATE_TBLUSAGE = "TRUNCATE TABLE dbo.tblUsage_temp"
+TRUNCATE_TBLUSAGE_MEX = "TRUNCATE TABLE dbo.tblUsageM_temp"
 TRUNCATE_TBLPROD = "TRUNCATE TABLE eng.tblProd_temp"
 TRUNCATE_TBLINVENTORY = "TRUNCATE TABLE dbo.tblInventory"
 TRUNCATE_TBLORDERS = "TRUNCATE TABLE dbo.tblOrders"
@@ -17,6 +18,8 @@ TRUNCATE_TBLALLORDERS = "TRUNCATE TABLE dbo.tblOrdersAll"
 INSERT_EMPLOYEE = """INSERT INTO production.EMPLOYEE (ID, NAME, ROLE) VALUES (?, ?, ?)"""
 INSERT_USAGE = """INSERT INTO dbo.tblUsage_temp (Date, Part, EngPart, Dept, Acct, Clock, Machine, Qty, Cost, SubTotal) 
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+INSERT_USAGE_MEX = """INSERT INTO dbo.tblUsageM_temp (Date, Part, EngPart, Dept, Acct, Clock, Machine, Qty, Cost, SubTotal) 
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
 INSERT_INVENTORY = """INSERT INTO dbo.tblInventory (PartNum, EngPartNum, Desc1, Desc2, Mfg, MfgPn, Cabinet, Drawer, 
                     OnHand, StandardCost, ReOrderDate, DeptUse, DeptPurch, ReOrderPt) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
@@ -96,6 +99,11 @@ def update_dbusage(data: list):
     """Update Spare Part Usage Data."""
     print("Updating Spare Part Usage Data...")
     update_database(data, TRUNCATE_TBLUSAGE, INSERT_USAGE)
+
+def update_dbusage_mex(data: list):
+    """Update Spare Part Usage Data."""
+    print("Updating Spare Part Usage Data for Mexico...")
+    update_database(data, TRUNCATE_TBLUSAGE_MEX, INSERT_USAGE_MEX)
 
 def update_dbprod(data: list):
     """Update Production Data."""
