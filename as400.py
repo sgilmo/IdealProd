@@ -442,6 +442,36 @@ def get_usage():
                 usage_list.append([str(x) for x in row])
     return usage_list
 
+def get_usage_mex():
+    """Get Spare Part Usage Data From iSeries AS400."""
+    #tables = ('FPSPRUSAG', 'FPSPRUSAGC', 'FPSPRUSAGP', 'FPSPRUSAGS')
+    tables = ['FPSPRUSAG']
+    usage_list = []
+
+    with connect_to_db() as db_connection:
+        cursor = db_connection.cursor()
+        for table in tables:
+            query_sql = f"""
+                SELECT STRIP(PROD.{table}.SPU_TRANDT),
+                       STRIP(PROD.{table}.SPU_PART),
+                       STRIP(PROD.{table}.SPU_ENGPRT),
+                       STRIP(PROD.{table}.SPU_USECC),
+                       STRIP(PROD.{table}.SPU_PURCC),
+                       STRIP(PROD.{table}.SPU_CLOCK),
+                       STRIP(PROD.{table}.SPU_RIDPO),
+                       PROD.{table}.SPU_TRNQTY,
+                       PROD.{table}.SPU_STDCST,
+                       ROUND(PROD.{table}.SPU_TRNQTY * PROD.{table}.SPU_STDCST, 2)
+                FROM PROD.{table}
+                WHERE PROD.{table}.SPU_FACIL = {PLANT_06}
+                AND STRIP(PROD.{table}.SPU_USECC) IS NOT NULL
+            """
+            result = process_query_result(cursor, query_sql, f"AS400 Usage Records from {table}")
+            for row in result:
+                row[0] = make_date(row[0])
+                usage_list.append([str(x) for x in row])
+    return usage_list
+
 def get_prod():
     """Get Production Data From iSeries AS400."""
     tables = ['FPMGFILE']
