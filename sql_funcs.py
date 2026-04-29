@@ -46,12 +46,14 @@ CONNECTION_STRING = (
 server = 'tn-sql'
 database = 'autodata'
 driver = 'ODBC+Driver+17+for+SQL+Server'
-user = os.getenv('SQL_UID')
-pwd = parse.quote_plus(os.getenv('SQL_PWD'))
 port = '1433'
-database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
-# Make Connection
-engine = create_engine(database_conn)
+user = os.getenv('SQL_UID')
+item = os.getenv('SQL_PWD')
+if item is not None:
+    pwd = parse.quote_plus(item)
+    database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
+    # Make Connection
+    engine = create_engine(database_conn)
 
 
 def execute_query(query: str, params: list = None):

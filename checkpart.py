@@ -6,7 +6,7 @@ import pyodbc
 
 
 def get_filemaker_items():
-    """Get Current part data file from Filemaker database."""
+    """Get the Current part data file from the Filemaker database."""
     cnxn = pyodbc.connect('DSN=FM Clamp ODBC;UID=FMODBC;PWD=FMODBC')
     cursor = cnxn.cursor()
     print('Connected to FileMaker Server\n\n')

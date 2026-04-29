@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 def get_custom_week_number(date):
     """
-    Calculate custom week number where week 1 is the first week with at least 4 days
+    Calculate a custom week number where week 1 is the first week with at least 4 days
     and weeks start on Sunday.
 
     Args:
@@ -36,7 +36,7 @@ def get_custom_week_number(date):
     # Count how many days are in the partial week before first Sunday
     days_before_first_sunday = days_to_sunday
 
-    # If there are 4+ days before the first Sunday (Thu, Fri, Sat, Sun = 4 days)
+    # If there are 4+ days before the first Sunday (Thu, Fri, Sat, Sun, = 4 days)
     # then Week 1 starts on the Sunday before or on Jan 1
     if days_before_first_sunday >= 4 or jan_1_weekday == 6:
         # Week 1 includes Jan 1
@@ -59,7 +59,7 @@ def get_custom_week_number(date):
 
 
 def check_for_int(data):
-    """Test if argument can be an integer"""
+    """Test if an argument can be an integer"""
     try:
         int(data)
         return True
@@ -105,7 +105,7 @@ def build_email(body_data, subject, message_header, mailto):
     sender = "elab@idealtridon.com"  # storing the sender's mail id
     # Generate string list for email message
     str_msg = ["<h3>" + message_header + "</h3>", "     " + "<br>".join(body_data) + "<br>"]
-    # insert html table:
+    # insert HTML table:
     # Configure Email
     text = ''.join(str_msg)
     message = """\
@@ -126,7 +126,7 @@ def build_email2(body_data, subject, message_header, mailto):
     sender = "elab@idealtridon.com"  # storing the sender's mail id
     # Generate string list for email message
     str_msg = ["<h3>" + message_header + "</h3>", "     " + body_data + "<br>"]
-    # insert html table:
+    # insert HTML table:
     # Configure Email
     text = ''.join(str_msg)
     message = """\

@@ -88,7 +88,8 @@ def make_req():
         mail_list = ["sgilmour@idealtridon.com", "bbrackman@idealtridon.com",
                      "toolcrib@idealtridon.com"]
         for item in unique_reqby:
-            mail_list.append(item.lower() + "@idealtridon.com")
+            if isinstance(item, str) and item.strip():
+                mail_list.append(item.strip().lower() + "@idealtridon.com")
         print(mail_list)
         df_reqspares = df_reqspares[
             ['req_by', 'depts_using', 'desc', 'mfg', 'vendor', 'mfgpn', 'dwg', 'rev', 'cost', 'qty_to_stock',
