@@ -85,7 +85,18 @@ def update_database(data: list, truncate_query: str, insert_query: str):
     execute_query(truncate_query)
     print("Loading data to SQL Server...")
     try:
-        execute_query(insert_query, data)
+        if len(data) > 0:
+            execute_query(insert_query, data)
+        else:
+            print("No data to insert.")
+            common_funcs.build_email2(
+                body_data=insert_query,
+                subject="SQL Query Did Not Run",
+                message_header="Query Did not Run Due to Lack of Data",
+                mailto=EMAIL_RECIPIENTS
+            )
+
+
         print(f"{len(data)} Records Processed")
     except Exception as e:
         print(f"SQL Query Failed: {e}")

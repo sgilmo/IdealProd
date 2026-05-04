@@ -54,10 +54,10 @@ conn_sql = engine.connect()
 TABLE_FPSPRMAST1 = "PROD.FPSPRMAST1"
 TABLE_FPSPRMAST2 = "PROD.FPSPRMAST2"
 TABLE_DMFMOMRID1 = "PROD.DMFMOMRID1"
-PLANT_03 = 3
-PLANT_06 = 6
-PLANT_08 = 8
-PLANT_09 = 9
+PLANT_03 = 3 # Brownsville
+PLANT_06 = 6 # Matamoras
+PLANT_08 = 8 # Matamoras 2
+PLANT_09 = 9 # Smyrna
 
 
 WEEK_NUMBER = common_funcs.get_custom_week_number(datetime.today())
@@ -463,7 +463,9 @@ def get_usage_mex():
                        PROD.{table}.SPU_STDCST,
                        ROUND(PROD.{table}.SPU_TRNQTY * PROD.{table}.SPU_STDCST, 2)
                 FROM PROD.{table}
-                WHERE PROD.{table}.SPU_FACIL = {PLANT_06}
+                WHERE PROD.{table}.SPU_FACIL = {PLANT_03}
+                OR PROD.{table}.SPU_FACIL = {PLANT_06}
+                OR PROD.{table}.SPU_FACIL = {PLANT_08}
                 AND STRIP(PROD.{table}.SPU_USECC) IS NOT NULL
             """
             result = process_query_result(cursor, query_sql, f"AS400 Usage Records from {table}")
