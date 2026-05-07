@@ -358,16 +358,22 @@ def get_orders():
 def get_comp_orders():
     """Get Order Data From iSeries AS400."""
     query_sql = f"""
-        SELECT STRIP({TABLE_DMFMOMRID1}.MFMOMR01),
-               STRIP({TABLE_DMFMOMRID1}.MFMOMR02),
-               STRIP({TABLE_DMFMOMRID1}.MFMOMR03),
-               STRIP({TABLE_DMFMOMRID1}.MFMOMR0C),
-               STRIP({TABLE_DMFMOMRID1}.MFMOMR0I),
-               STRIP({TABLE_DMFMOMRID1}.MFMOMR0B),
-               STRIP({TABLE_DMFMOMRID1}.MFMOMR06),
-               STRIP({TABLE_DMFMOMRID1}.MFMOMR09)
-        FROM {TABLE_DMFMOMRID1}
-        WHERE {TABLE_DMFMOMRID1}.MFMOMR01 = '09' OR {TABLE_DMFMOMRID1}.MFMOMR01 = '06'
+        SELECT 
+            STRIP({TABLE_DMFMOMRID1}.MFMOMR01),
+            STRIP({TABLE_DMFMOMRID1}.MFMOMR02),
+            STRIP({TABLE_DMFMOMRID1}.MFMOMR03),
+            STRIP({TABLE_DMFMOMRID1}.MFMOMR0C),
+            STRIP({TABLE_DMFMOMRID1}.MFMOMR0I),
+            STRIP({TABLE_DMFMOMRID1}.MFMOMR0B),
+            STRIP({TABLE_DMFMOMRID1}.MFMOMR06),
+            STRIP({TABLE_DMFMOMRID1}.MFMOMR09)
+        FROM 
+            {TABLE_DMFMOMRID1}
+        WHERE 
+            {TABLE_DMFMOMRID1}.MFMOMR01 = '09' 
+            OR {TABLE_DMFMOMRID1}.MFMOMR01 = '06'
+            OR {TABLE_DMFMOMRID1}.MFMOMR01 = '03'
+            OR {TABLE_DMFMOMRID1}.MFMOMR01 = '08'
     """
     with connect_to_db() as db_connection:
         cursor = db_connection.cursor()

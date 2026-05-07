@@ -181,6 +181,19 @@ COMPONENTS_DTYPE = {
     "MAJLOC": str,
     "MINLOC": str,
 }
+
+COMPONENTS_ALL_COLUMNS = ["ITMID", "PLT", "QTY", "ITMDESC", "CLASS", "MAJLOC", "MINLOC"]
+COMPONENTS_ALL_DTYPE = {
+    "ITMID": str,
+    "PLT": str,
+    "QTY": int,
+    "ITMDESC": str,
+    "CLASS": str,
+    "MAJLOC": str,
+    "MINLOC": str,
+}
+
+
 # File path constants
 CSV_OUTPUT_PATH = 'C:\\Inetpub\\ftproot\\acmparts\\'  # Change to the appropriate output directory
 if HOSTNAME == 'BNAWS625':
@@ -249,7 +262,7 @@ def pull_data(conn,qry):
 
     return result
 
-def _build_components_dataframe(raw_records: list) -> pd.DataFrame:
+def _build_components_dataframe(raw_records: list,comp_columns: list,comp_dtypes: dict) -> pd.DataFrame:
     """
     Build the dataframe containing the inventory of components from raw AS400 records.
 
@@ -258,12 +271,12 @@ def _build_components_dataframe(raw_records: list) -> pd.DataFrame:
     """
     if not raw_records:
         # Return an empty DataFrame with the correct schema
-        return pd.DataFrame(columns=COMPONENTS_COLUMNS)
+        return pd.DataFrame(columns=comp_columns)
 
-    df_inv = pd.DataFrame.from_records(raw_records, columns=COMPONENTS_COLUMNS)
+    df_inv = pd.DataFrame.from_records(raw_records, columns=comp_columns)
 
     # Drop any rows missing required fields before numeric conversion
-    df_inv = df_inv.dropna(subset=COMPONENTS_COLUMNS)
+    df_inv = df_inv.dropna(subset=comp_columns)
 
     # Remove "00" from ITEMID if it starts with 8, is 7 chars long, and ends with 00
     mask = (
@@ -280,10 +293,10 @@ def _build_components_dataframe(raw_records: list) -> pd.DataFrame:
     df_inv = df_inv.dropna(subset=["QTY"])
 
     try:
-        df_inv = df_inv.astype(COMPONENTS_DTYPE)
+        df_inv = df_inv.astype(comp_dtypes)
     except (TypeError, ValueError) as exc:
         print(f"Error converting component inventory data types: {exc}")
-        return pd.DataFrame(columns=COMPONENTS_COLUMNS)
+        return pd.DataFrame(columns=comp_columns)
 
     # Let pandas choose the most appropriate dtypes (nullable ints, etc.)
     df_inv = df_inv.convert_dtypes()
@@ -308,32 +321,97 @@ def comp_df(plant) -> pd.DataFrame:
     """
 
     sql_inv = f"""
-                 SELECT STRIP(y.itmid), \
-                        b.qty, \
-                        STRIP(y.itmdesc), \
-                        STRIP(SUBSTR(Altdesc, 15, 1)) Class, \
-                        STRIP(b.MAJLOC), \
-                        STRIP(b.MINLOC)
-                 FROM CCSDTA.DCSCIM y, \
-                      CCSDTA.DMFCMAR x, \
-                      CCSDTA.DCSILM b
-                 WHERE x.itmid = y.itmid
-                   AND x.itmid = b.itmid
-                   AND x.plt = b.plt
-                   AND b.plt = {plant}
-                   AND qty <> 0
-                   AND x.COSTID = 'FRZ'
-                   AND x.plt NOT IN ('53', '54', '55', '56', '59') \
+                 SELECT 
+                    STRIP(y.itmid),
+                    b.qty,
+                    STRIP(y.itmdesc),
+                    STRIP(SUBSTR(Altdesc, 15, 1)) Class,
+                    STRIP(b.MAJLOC),
+                    STRIP(b.MINLOC)
+                 FROM 
+                    CCSDTA.DCSCIM y,
+                    CCSDTA.DMFCMAR x,
+                    CCSDTA.DCSILM b
+                 WHERE 
+                    x.itmid = y.itmid
+                    AND x.itmid = b.itmid
+                    AND x.plt = b.plt
+                    AND b.plt = {plant}
+                    AND qty <> 0
+                    AND x.COSTID = 'FRZ'
+                    AND x.plt NOT IN ('53', '54', '55', '56', '59')
                  """
 
+    sql_inv_all = """
+              SELECT STRIP(y.itmid), \
+                     STRIP(x.plt), \
+                     b.qty, \
+                     STRIP(y.itmdesc), \
+                     STRIP(SUBSTR(Altdesc, 15, 1)) Class, \
+                     STRIP(b.MAJLOC), \
+                     STRIP(b.MINLOC)
+              FROM CCSDTA.DCSCIM y, \
+                   CCSDTA.DMFCMAR x, \
+                   CCSDTA.DCSILM b
+              WHERE x.itmid = y.itmid
+                AND x.itmid = b.itmid
+                AND x.plt = b.plt
+                AND qty <> 0
+                AND x.COSTID = 'FRZ'
+                AND x.plt IN ('03', '06', '08', '09') \
+              """
+
     print("Getting component inventory data from AS400 for plant: ", plant, "")
+    raw_records = pull_data(CONNAS400_CCSDTA, sql_inv)
+    if not raw_records:
+        print("Warning: No component inventory data retrieved from AS400")
+        return pd.DataFrame(columns=COMPONENTS_COLUMNS)
+    
+    return _build_components_dataframe(raw_records,COMPONENTS_COLUMNS,COMPONENTS_DTYPE)
+
+def comp_all_df() -> pd.DataFrame:
+    """
+    Retrieves and processes component inventory data from an AS400 database.
+
+    This function fetches raw component inventory data from an AS400 system for all plants.
+    If data is successfully retrieved, it is processed into a
+    pandas' DataFrame. If no data is retrieved, an empty DataFrame with predefined columns
+    is returned.
+
+    :return: A pandas DataFrame containing the processed component inventory data
+    :rtype: pd.DataFrame
+    """
+
+    sql_inv = """
+                  SELECT
+                        STRIP(y.itmid),
+                        STRIP(x.plt),
+                        b.qty,
+                        STRIP(y.itmdesc),
+                        STRIP(SUBSTR(Altdesc, 15, 1)) Class,
+                        STRIP(b.MAJLOC),
+                        STRIP(b.MINLOC)
+                  FROM 
+                        CCSDTA.DCSCIM y,
+                        CCSDTA.DMFCMAR x,
+                        CCSDTA.DCSILM b
+                  WHERE 
+                        x.itmid = y.itmid
+                        AND x.itmid = b.itmid
+                        AND x.plt = b.plt
+                        AND qty <> 0
+                        AND x.COSTID = 'FRZ'
+                        AND x.plt IN ('03', '06', '08', '09')
+                  """
+
+    print("Getting component inventory data from AS400 for all plants")
     raw_records = pull_data(CONNAS400_CCSDTA, sql_inv)
 
     if not raw_records:
         print("Warning: No component inventory data retrieved from AS400")
-        return pd.DataFrame(columns=COMPONENTS_COLUMNS)
+        return pd.DataFrame(columns=COMPONENTS_ALL_COLUMNS)
 
-    return _build_components_dataframe(raw_records)
+    return _build_components_dataframe(raw_records,COMPONENTS_ALL_COLUMNS,COMPONENTS_ALL_DTYPE)
 
 
 # noinspection GrazieInspectionRunner
@@ -637,6 +715,59 @@ def comp_tbl(df_data, tbl_name):
         print(f"Error inserting data into {tbl_name}: {e}")
         raise
 
+def comp_all_tbl(df_data, tbl_name):
+    """
+    Builds a component SQL table from the provided DataFrame. Validates the necessary columns, converts
+    data types where applicable, and inserts the data into the specified SQL table. Stops execution
+    if the DataFrame is empty or required columns are missing.
+
+    :param df_data: The DataFrame containing component data to be processed. It must include the
+        following required columns: 'ITMID','PLT', 'QTY', 'ITMDESC', and 'CLASS'. Extra columns will be
+        handled if they are included in `data_type_dict`.
+    :type df_data: pandas.DataFrame
+
+    :param tbl_name: The name of the SQL table where the data should be inserted.
+    :type tbl_name: Str
+
+    :return: None
+    """
+
+    # Build Components Table
+    print('Building Component Inventory SQL Table for all plants' + tbl_name)
+
+    if df_data is None:
+        raise ValueError("df_data cannot be None")
+
+
+    if df_data.empty:
+        print("Warning: Empty DataFrame, skipping SQL insert")
+        return
+
+    # Validate required columns exist
+    required_columns = ['ITMID', 'PLT', 'QTY', 'ITMDESC', 'CLASS', 'MAJLOC', 'MINLOC']
+    missing_columns = [col for col in required_columns if col not in df_data.columns]
+    if missing_columns:
+        error_msg = f"Missing required columns: {missing_columns}"
+        print(f"Error: {error_msg}")
+        raise ValueError(error_msg)
+
+    data_type_dict: Mapping[Hashable, Any] = {'ITMID': sqlalchemy.types.VARCHAR(255),
+                                              'PLT': sqlalchemy.types.VARCHAR(255),
+                                              'QTY': sqlalchemy.types.INT,
+                                              'ITMDESC': sqlalchemy.types.VARCHAR(255),
+                                              'CLASS': sqlalchemy.types.VARCHAR(255),
+                                              'MAJLOC': sqlalchemy.types.VARCHAR(255),
+                                              'MINLOC': sqlalchemy.types.VARCHAR(255)
+                                              }
+
+
+    try:
+        df_data.to_sql(tbl_name, as400.engine, schema='eng', if_exists='replace', index=False, dtype=data_type_dict)
+        print(f"Successfully inserted {len(df_data)} records into {tbl_name}")
+    except Exception as e:
+        print(f"Error inserting data into {tbl_name}: {e}")
+        raise
+
 
 def save_dataframe_to_csv(df_data, filename, output_path=CSV_OUTPUT_PATH):
     """
@@ -716,6 +847,7 @@ def main():
         df_comp_06 = comp_df('06')
         df_comp_08 = comp_df('08')
         df_comp_09 = comp_df('09')
+        df_comp_all = comp_all_df()
 
 
         # Save to SQL Server
@@ -726,6 +858,7 @@ def main():
         comp_tbl(df_comp_03, 'tblInv03')
         comp_tbl(df_comp_06, 'tblInv06')
         comp_tbl(df_comp_08, 'tblInv08')
+        comp_all_tbl(df_comp_all, 'tblCompInvAllPlants')
 
 
         # Save to CSV files
