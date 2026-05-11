@@ -308,15 +308,18 @@ def _build_components_dataframe(raw_records: list,comp_columns: list,comp_dtypes
 # noinspection GrazieInspectionRunner
 def comp_df(plant) -> pd.DataFrame:
     """
-    Retrieves and processes component inventory data from an AS400 database.
+    Generate a component inventory DataFrame based on AS400 data for a specific plant or all plants.
 
-    This function fetches raw component inventory data from an AS400 system using the
-    provided plant number. If data is successfully retrieved, it is processed into a
-    pandas' DataFrame. If no data is retrieved, an empty DataFrame with predefined columns
-    is returned.
+    This function fetches inventory data from the AS400 database and processes the result
+    into a structured DataFrame. If a specific plant is provided, only data for that plant
+    is retrieved. If the plant identifier is '00', data for all relevant plants is retrieved.
 
-    :param plant: Plant identifier for the component inventory data
-    :return: A pandas DataFrame containing the processed component inventory data
+    :param plant: The plant identifier as a string. Use a specific plant code (e.g., '03', '06')
+        to fetch data for a single plant, or '00' to fetch data for all specified plants.
+    :type plant: str
+
+    :return: A DataFrame containing the processed component inventory data. The columns of the
+        DataFrame vary depending on whether a specific plant or all plants are selected.
     :rtype: pd.DataFrame
     """
 
@@ -343,75 +346,40 @@ def comp_df(plant) -> pd.DataFrame:
                  """
 
     sql_inv_all = """
-              SELECT STRIP(y.itmid), \
-                     STRIP(x.plt), \
-                     b.qty, \
-                     STRIP(y.itmdesc), \
-                     STRIP(SUBSTR(Altdesc, 15, 1)) Class, \
-                     STRIP(b.MAJLOC), \
+              SELECT STRIP(y.itmid),
+                     STRIP(x.plt),
+                     b.qty,
+                     STRIP(y.itmdesc),
+                     STRIP(SUBSTR(Altdesc, 15, 1)) Class,
+                     STRIP(b.MAJLOC),
                      STRIP(b.MINLOC)
-              FROM CCSDTA.DCSCIM y, \
-                   CCSDTA.DMFCMAR x, \
+              FROM CCSDTA.DCSCIM y,
+                   CCSDTA.DMFCMAR x,
                    CCSDTA.DCSILM b
               WHERE x.itmid = y.itmid
                 AND x.itmid = b.itmid
                 AND x.plt = b.plt
                 AND qty <> 0
                 AND x.COSTID = 'FRZ'
-                AND x.plt IN ('03', '06', '08', '09') \
+                AND x.plt IN ('03', '06', '08', '09')
               """
+    raw_records = []
+    comp_columns = COMPONENTS_COLUMNS
+    comp_dtypes = COMPONENTS_DTYPE
+    if plant != '00':
+        print("Getting component inventory data from AS400 for plant: ", plant, "")
+        raw_records = pull_data(CONNAS400_CCSDTA, sql_inv)
+    elif plant == '00':
+        comp_columns = COMPONENTS_ALL_COLUMNS
+        comp_dtypes = COMPONENTS_ALL_DTYPE
+        print("Getting component inventory data from AS400 for all plants")
+        raw_records = pull_data(CONNAS400_CCSDTA, sql_inv_all)
 
-    print("Getting component inventory data from AS400 for plant: ", plant, "")
-    raw_records = pull_data(CONNAS400_CCSDTA, sql_inv)
     if not raw_records:
         print("Warning: No component inventory data retrieved from AS400")
         return pd.DataFrame(columns=COMPONENTS_COLUMNS)
-    
-    return _build_components_dataframe(raw_records,COMPONENTS_COLUMNS,COMPONENTS_DTYPE)
 
-def comp_all_df() -> pd.DataFrame:
-    """
-    Retrieves and processes component inventory data from an AS400 database.
-
-    This function fetches raw component inventory data from an AS400 system for all plants.
-    If data is successfully retrieved, it is processed into a
-    pandas' DataFrame. If no data is retrieved, an empty DataFrame with predefined columns
-    is returned.
-
-    :return: A pandas DataFrame containing the processed component inventory data
-    :rtype: pd.DataFrame
-    """
-
-    sql_inv = """
-                  SELECT
-                        STRIP(y.itmid),
-                        STRIP(x.plt),
-                        b.qty,
-                        STRIP(y.itmdesc),
-                        STRIP(SUBSTR(Altdesc, 15, 1)) Class,
-                        STRIP(b.MAJLOC),
-                        STRIP(b.MINLOC)
-                  FROM 
-                        CCSDTA.DCSCIM y,
-                        CCSDTA.DMFCMAR x,
-                        CCSDTA.DCSILM b
-                  WHERE 
-                        x.itmid = y.itmid
-                        AND x.itmid = b.itmid
-                        AND x.plt = b.plt
-                        AND qty <> 0
-                        AND x.COSTID = 'FRZ'
-                        AND x.plt IN ('03', '06', '08', '09')
-                  """
-
-    print("Getting component inventory data from AS400 for all plants")
-    raw_records = pull_data(CONNAS400_CCSDTA, sql_inv)
-
-    if not raw_records:
-        print("Warning: No component inventory data retrieved from AS400")
-        return pd.DataFrame(columns=COMPONENTS_ALL_COLUMNS)
-
-    return _build_components_dataframe(raw_records,COMPONENTS_ALL_COLUMNS,COMPONENTS_ALL_DTYPE)
+    return _build_components_dataframe(raw_records,comp_columns,comp_dtypes)
 
 
 # noinspection GrazieInspectionRunner
@@ -838,31 +806,29 @@ def main():
     """
     try:
         # Get Orders
-        get_orders()
+        #get_orders()
 
-        # Get component data
-        df_parts = parts_df()
-        df_bands = bands_df()
+        # Get FileMaker data and add to SQL Server
+        #df_parts = parts_df()
+        #df_bands = bands_df()
+        #part_tbl(df_parts)
+        #band_tbl(df_bands)
+
         df_comp_03 = comp_df('03')
+        comp_tbl(df_comp_03, 'tblInv03')
         df_comp_06 = comp_df('06')
+        comp_tbl(df_comp_06, 'tblInv06')
         df_comp_08 = comp_df('08')
+        comp_tbl(df_comp_08, 'tblInv08')
         df_comp_09 = comp_df('09')
-        df_comp_all = comp_all_df()
-
-
-        # Save to SQL Server
-        part_tbl(df_parts)
-        band_tbl(df_bands)
         comp_tbl(df_comp_09, 'tblInv09')
         comp_tbl(df_comp_09, 'tblInvAll')
-        comp_tbl(df_comp_03, 'tblInv03')
-        comp_tbl(df_comp_06, 'tblInv06')
-        comp_tbl(df_comp_08, 'tblInv08')
-        comp_all_tbl(df_comp_all, 'tblCompInvAllPlants')
+        df_comp_all = comp_df('00')
+        comp_all_tbl(df_comp_all, 'tblCompInvAllPlants3')
 
 
         # Save to CSV files
-        save_dataframe_to_csv(df_parts, 'parts_clamps.csv')
+        #save_dataframe_to_csv(df_parts, 'parts_clamps.csv')
         # save_dataframe_to_csv(df_components, 'components_inventory.csv')
 
     except Exception as e:

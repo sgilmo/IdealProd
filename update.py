@@ -397,7 +397,7 @@ def check_file_size(srcpath, ftype):
 
 
 def movefile(oldfile, newfile):
-    """Move a file to new location, file name needs to contain a path"""
+    """Move a file to a new location, the file name needs to contain a path"""
     try:
         os.rename(oldfile, newfile)
     except OSError as e:
@@ -407,7 +407,7 @@ def movefile(oldfile, newfile):
         logger.error(msg + " [" + movefile.__name__ + "]")
 
 def ensure_directory_exists(directory_path):
-    """Create directory if it doesn't exist."""
+    """Create a directory if it doesn't exist."""
     if not os.path.isdir(directory_path):
         os.mkdir(directory_path)
 
