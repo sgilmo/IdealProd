@@ -809,10 +809,10 @@ def main():
         #get_orders()
 
         # Get FileMaker data and add to SQL Server
-        #df_parts = parts_df()
-        #df_bands = bands_df()
-        #part_tbl(df_parts)
-        #band_tbl(df_bands)
+        df_parts = parts_df()
+        df_bands = bands_df()
+        part_tbl(df_parts)
+        band_tbl(df_bands)
 
         df_comp_03 = comp_df('03')
         comp_tbl(df_comp_03, 'tblInv03')
@@ -824,11 +824,11 @@ def main():
         comp_tbl(df_comp_09, 'tblInv09')
         comp_tbl(df_comp_09, 'tblInvAll')
         df_comp_all = comp_df('00')
-        comp_all_tbl(df_comp_all, 'tblCompInvAllPlants3')
+        comp_all_tbl(df_comp_all, 'tblCompInvAllPlants')
 
 
         # Save to CSV files
-        #save_dataframe_to_csv(df_parts, 'parts_clamps.csv')
+        save_dataframe_to_csv(df_parts, 'parts_clamps.csv')
         # save_dataframe_to_csv(df_components, 'components_inventory.csv')
 
     except Exception as e:
