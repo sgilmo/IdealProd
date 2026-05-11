@@ -806,7 +806,7 @@ def main():
     """
     try:
         # Get Orders
-        #get_orders()
+        get_orders()
 
         # Get FileMaker data and add to SQL Server
         df_parts = parts_df()
