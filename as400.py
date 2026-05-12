@@ -341,13 +341,14 @@ def process_query_result(cursor, query_sql, description):
 def get_orders():
     """Get Order Data From iSeries AS400."""
     query_sql = f"""
-        SELECT STRIP({TABLE_DMFMOMRID1}.MFMOMR02),
-               STRIP({TABLE_DMFMOMRID1}.MFMOMR03),
-               STRIP({TABLE_DMFMOMRID1}.MFMOMR0D),
-               STRIP({TABLE_DMFMOMRID1}.MFMOMR0I),
-               STRIP({TABLE_DMFMOMRID1}.MFMOMR0B),
-               STRIP({TABLE_DMFMOMRID1}.MFMOMR06),
-               STRIP({TABLE_DMFMOMRID1}.MFMOMR09)
+        SELECT 
+            STRIP({TABLE_DMFMOMRID1}.MFMOMR02),
+            STRIP({TABLE_DMFMOMRID1}.MFMOMR03),
+            STRIP({TABLE_DMFMOMRID1}.MFMOMR0D),
+            STRIP({TABLE_DMFMOMRID1}.MFMOMR0I),
+            STRIP({TABLE_DMFMOMRID1}.MFMOMR0B),
+            STRIP({TABLE_DMFMOMRID1}.MFMOMR06),
+            STRIP({TABLE_DMFMOMRID1}.MFMOMR09)
         FROM {TABLE_DMFMOMRID1}
         WHERE {TABLE_DMFMOMRID1}.MFMOMR01 = '09' AND LEFT({TABLE_DMFMOMRID1}.MFMOMR0I,1) = '3'
     """
