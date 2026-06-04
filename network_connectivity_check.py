@@ -160,7 +160,6 @@ def main():
         if offline_devices:
             logger.warning(f"Found {len(offline_devices)} offline devices")
             notify_failed_devices(failed_devices)
-            # Here you could add email notification or other alerts
         else:
             logger.info("All devices are online")
 
