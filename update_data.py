@@ -36,25 +36,6 @@ PWD=SMY;
 
 CONNFM = 'DSN=FM Clamp ODBC;UID=FMODBC;PWD=FMODBC'
 
-# Define Some SQL Statements
-
-
-sql_parts = """
-    SELECT Ourpart,"Band A Part Number", "Housing A Part Number",
-        "Screw Part Number", "Band Feed from Band data",
-        "Ship Diam Max", "Ship Diam Min", "Hex Size", "Band_Thickness", "Band_Width",
-        "CameraInspectionRequired", "ScrDrvChk", "Cutout1", "DrawingPrintNumber","Size", "Pack", "Ultimate Torque Min"
-    FROM tbl8Tridon
-"""
-
-sql_bands = """
-    SELECT "Band Part Number","Material Spec Number", "Number of Notches",
-        "Band Stamp Part Number A", "Die A Part Number","Die B Part Number","Die C Part Number","Die D Part Number",
-        "Width", "Thickness", "Abutment Punch Data", "A Notches Removed", "B Notches Removed",
-        "Tang Length Number", "Band Length", "Feed Length", "Dim A", "Dim B", "Dim C", "Dim D", "Die A Note", 
-        "Die B Note", "Die C Note", "Die D Note"
-    FROM BANDS
-"""
 # Set Some Constants
 HOSTNAME = socket.gethostname()
 BAND_COLUMNS = [
@@ -397,6 +378,16 @@ def parts_df() -> pd.DataFrame:
               an empty DataFrame is returned.
     :rtype: pd.DataFrame
     """
+
+    sql_parts = """
+                SELECT 
+                    Ourpart,"Band A Part Number", "Housing A Part Number", "Screw Part Number", 
+                    "Band Feed from Band data", "Ship Diam Max", "Ship Diam Min", "Hex Size", 
+                    "Band_Thickness", "Band_Width", "CameraInspectionRequired", "ScrDrvChk", 
+                    "Cutout1", "DrawingPrintNumber","Size", "Pack", "Ultimate Torque Min"
+                FROM tbl8Tridon
+                """
+
     print("Getting Part Data From Filemaker")
     raw_data = pull_data(CONNFM, sql_parts)
 
@@ -471,9 +462,8 @@ def _clean_string_columns(df) -> pd.DataFrame:
         return df
 
     df[string_cols] = df[string_cols].apply(lambda col: col.str.strip())
-    df[string_cols] = df[string_cols].apply(
-        lambda col: col.str.replace(r'["\']', '', regex=True)
-    )
+    df[string_cols] = df[string_cols].apply(lambda col: col.str.replace(r'["\']', '', regex=True))
+
     return df
 
 def bands_df() -> pd.DataFrame:
@@ -485,6 +475,18 @@ def bands_df() -> pd.DataFrame:
         pandas.DataFrame
             Cleaned bands data, or an empty DataFrame if no data or errors occur.
         """
+
+    sql_bands = """
+        SELECT 
+            "Band Part Number","Material Spec Number", "Number of Notches", "Band Stamp Part Number A", 
+            "Die A Part Number","Die B Part Number","Die C Part Number","Die D Part Number",
+            "Width", "Thickness", "Abutment Punch Data", "A Notches Removed", "B Notches Removed",
+            "Tang Length Number", "Band Length", "Feed Length", "Dim A", "Dim B", "Dim C", "Dim D", "Die A Note", 
+            "Die B Note", "Die C Note", "Die D Note"
+        FROM 
+            BANDS
+    """
+
     print('Getting Band Data From Filemaker')
     data = pull_data(CONNFM, sql_bands)
 
