@@ -32,12 +32,12 @@ DELETE_EMPTY_DIRECTORIES = False  # safer default
 # ----------------------------
 
 def setup_logging() -> logging.Logger:
-    logger = logging.getLogger("cleanup")
-    logger.setLevel(logging.INFO)
-    logger.propagate = False
+    log = logging.getLogger("cleanup")
+    log.setLevel(logging.INFO)
+    log.propagate = False
 
-    if logger.handlers:
-        return logger
+    if log.handlers:
+        return log
 
     log_dir = Path(LOG_FILE).parent
     try:
@@ -53,16 +53,16 @@ def setup_logging() -> logging.Logger:
 
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
+    log.addHandler(stream_handler)
 
     try:
         file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
         file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+        log.addHandler(file_handler)
     except OSError as exc:
-        logger.warning("Could not open log file %s: %s", LOG_FILE, exc)
+        log.warning("Could not open log file %s: %s", LOG_FILE, exc)
 
-    return logger
+    return log
 
 
 logger = setup_logging()
