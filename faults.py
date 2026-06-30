@@ -59,6 +59,10 @@ def get_faults():
     archive_path = "\\Inetpub\\ftproot\\fault_archive\\"
     today = date.today()
 
+    # Define Variables
+    sql = ""
+    rowdata = ()
+
     # Get List of Data Files, Parse their Content and Insert into Database
     # str(datetime.timedelta(seconds=int(row[5]))),
     dirlist = os.listdir(dirpath)
