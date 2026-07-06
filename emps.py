@@ -4,7 +4,7 @@ Get employee information from AS400, update SQL Server database with that data,
 and create a CSV file in the FTP root directory.
 """
 import csv
-from typing import List
+from typing import List, Literal, cast
 import as400
 import sql_funcs
 
@@ -12,6 +12,7 @@ import sql_funcs
 OUTPUT_PATH = "\\Inetpub\\ftproot\\"
 OUTPUT_FILENAME = "emps.csv"
 NO_LOGIN_USER = ['0000', 'Please Log In', 'DEF']
+CSV_QUOTE_NONE = cast(Literal[3], csv.QUOTE_NONE)
 
 
 def fetch_employee_data() -> List[List]:
@@ -51,7 +52,7 @@ def create_csv_file(employee_data: List[List], filepath: str) -> None:
         csv_writer = csv.writer(
             output_file,
             delimiter=',',
-            quoting=csv.QUOTE_NONE,
+            quoting=CSV_QUOTE_NONE,
             escapechar='\\'
         )
         csv_writer.writerows(data_for_export)
