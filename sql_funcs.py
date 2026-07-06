@@ -56,7 +56,7 @@ if item is not None:
     engine = create_engine(database_conn)
 
 
-def execute_query(query: str, params: list = None):
+def execute_query(query: str, params: list | None = None):
     """
     Execute a generic SQL query within a context manager to automatically handle connections.
     Args:
