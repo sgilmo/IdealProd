@@ -3,7 +3,7 @@
 
 """This program finds available IP addresses.
 
-within the Elab assigned subnet 10.143.50.xxx
+Within the Elab assigned subnet 10.143.50.xxx
 and 10.143.51.xxx
 """
 

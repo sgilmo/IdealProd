@@ -2,7 +2,7 @@
 
 """This Program moves fault logs to the SQL server.
 
-When files are found they are parsed and their data is.
+When files are found they are parsed and their data is
 inserted into the database.
 """
 

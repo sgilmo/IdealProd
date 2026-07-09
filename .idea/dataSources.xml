@@ -8,8 +8,8 @@
       <jdbc-url>jdbc:sqlserver://TN-SQL;database=autodata</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
-    <data-source source="LOCAL" name="FileMaker" uuid="7458be31-a2d4-4bb0-8be2-29e51188bb86">
-      <driver-ref>java.sql.Driver</driver-ref>
+    <data-source source="LOCAL" name="FM" uuid="7458be31-a2d4-4bb0-8be2-29e51188bb86">
+      <driver-ref>4c5ea314-bddf-402e-9dee-cd3c96e58b37</driver-ref>
       <synchronize>true</synchronize>
       <configured-by-url>true</configured-by-url>
       <jdbc-driver>com.filemaker.jdbc.Driver</jdbc-driver>
