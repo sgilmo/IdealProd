@@ -7,7 +7,7 @@ def main():
     orders = as400.get_orders()
     sql_funcs.update_orders(orders)
 
-    all_orders = as400.get_comp_orders()
+    all_orders = as400.get_all_orders()
     sql_funcs.update_all_orders(all_orders)
     return
 
