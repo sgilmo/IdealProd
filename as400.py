@@ -159,7 +159,8 @@ def _build_scrap_dataframe(raw_records: list) -> pd.DataFrame:
     """
 
     # Set Column names and data types for scrap DataFrame
-    scrap_columns = ["ITMID", "ITMDESC", "PRODCODE", "INVCLASS", "TXNCD", "REASON", "PLT", "TXNQTY", "UOM", "ITMCOST", "FRZSTDCST", "SCRAP_COST", "TNREF1", "TXNSDT", "DATE1", "USERID"]
+    scrap_columns = ["ITMID", "ITMDESC", "PRODCODE", "INVCLASS", "TXNCD", "REASON", "PLT", "TXNQTY", "UOM", "ITMCOST",
+                     "FRZSTDCST", "SCRAP_COST", "TNREF1", "TXNSDT", "DATE1", "USERID"]
 
     scrap_dtype = {
         "ITMID": str,
@@ -356,7 +357,7 @@ def get_orders():
         cursor = db_connection.cursor()
         return process_query_result(cursor, query_sql, "AS400 Order Records")
 
-def get_comp_orders():
+def get_all_orders():
     """Get Order Data From iSeries AS400."""
     query_sql = f"""
         SELECT 
