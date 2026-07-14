@@ -31,7 +31,7 @@ INSERT_ORDERS = """INSERT INTO dbo.tblOrders (OrderNum, PartNumber, Qty, Machine
                    VALUES (?, ?, ?, LEFT(?,3), dbo.JulianToDate(?), dbo.JulianToDate(?), dbo.JulianToDate(?))
                    """
 INSERT_ALL_ORDERS = """INSERT INTO dbo.tblOrdersAll (Plant, OrderNum, PartNumber, Qty, Note, EntryDate, StartDate, DueDate) 
-                       VALUES (?,?, ?, ?, ?, dbo.JulianToDate(?), dbo.JulianToDate(?), dbo.JulianToDate(?))"""
+                       VALUES (?, ?, ?, ?, ?, dbo.JulianToDate(?), dbo.JulianToDate(?), dbo.JulianToDate(?))"""
 
 # Database connection settings
 CONNECTION_STRING = (
