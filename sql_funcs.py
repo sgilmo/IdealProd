@@ -38,8 +38,8 @@ CONNECTION_STRING = (
     f"Driver={{SQL Server}};"
     f"Server=tn-sql;"
     f"Database=autodata;"
-    f"UID={os.getenv('SQL_UID')};"
-    f"PWD={os.getenv('SQL_PWD')};"
+    f"UID={os.getenv('SQL_UID', '')};"
+    f"PWD={os.getenv('SQL_PWD', '')};"
 )
 
 # SQLAlchemy connection
