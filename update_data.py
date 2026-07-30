@@ -127,6 +127,24 @@ PARTS_DTYPE_MAP = {
     "UltimateTorqueMin": float,
 }
 
+SL_PARTS_COLUMNS = [
+    "PartNumber",
+    "Band",
+    "Housing",
+    "Screw",
+    "Feed",
+    "Saddle",
+]
+
+SL_PARTS_DTYPE_MAP = {
+    "PartNumber": str,
+    "Band": str,
+    "Housing": str,
+    "Screw": str,
+    "Feed": float,
+    "Saddle": str,
+}
+
 REQUIRED_NON_NONE_COLUMNS = [
     "Band",
     "Housing",
@@ -134,6 +152,18 @@ REQUIRED_NON_NONE_COLUMNS = [
     "HexSz",
     "CamInspect",
     "PartNumber",
+]
+
+SL_REQUIRED_NON_NONE_COLUMNS = [
+    "Band",
+    "Housing",
+    "Screw",
+    "Saddle",
+    "PartNumber",
+]
+
+SL_NUMERIC_COLUMNS_TO_ROUND = [
+    "Feed",
 ]
 
 NUMERIC_COLUMNS_TO_ROUND = [
@@ -439,6 +469,73 @@ def parts_df() -> pd.DataFrame:
     print(f"Processed {len(df_parts)} records")
     return df_parts
 
+def sl_parts_df() -> pd.DataFrame:
+    """
+    Transforms raw data retrieved from FileMaker into a structured and clean DataFrame of parts.
+
+    This function pulls data from a FileMaker database using a predefined connection and SQL query.
+    The raw data is processed through several cleaning, filtering, and normalization steps to
+    generate a structured pandas DataFrame. It ensures the data adheres to specific formatting
+    rules, handles missing or invalid values, and prepares it for further analysis or usage.
+
+    :returns: A cleaned and processed pandas DataFrame containing parts information.
+              If no valid data is available or errors occur during transformation,
+              an empty DataFrame is returned.
+    :rtype: pd.DataFrame
+    """
+
+    sql_parts = """
+                SELECT
+                    Ourpart,"Band A Part Number", "Housing A Part Number", "Screw Part Number",
+                    "Band Feed from Band data", "Lower Housing Part Number"
+                FROM tbl8Tridon
+                WHERE UPPER(tbl8Tridon."Clamp Type") LIKE 'SURELOCK%'
+                """
+
+    print("Getting Part Data From Filemaker")
+    raw_data = pull_data(CONNFM, sql_parts)
+
+    if not raw_data:
+        print("Warning: No data retrieved from Filemaker")
+        return pd.DataFrame()
+
+    raw_data = tuple(map(lambda x: x, raw_data))
+    # Build initial DataFrame with explicit columns
+    df_parts = pd.DataFrame.from_records(raw_data, columns=SL_PARTS_COLUMNS)
+
+    # Basic filtering and row slicing
+    df_parts = df_parts[df_parts["Feed"] != "N/A"].iloc[1:].copy()
+
+    # Clean string columns (trim & remove quotes)
+    df_parts = _clean_string_columns(df_parts)
+
+    # Convert to target dtypes
+    try:
+        df_parts = df_parts.astype(SL_PARTS_DTYPE_MAP)
+    except (TypeError, ValueError) as exc:
+        print(f"Error converting data types: {exc}")
+        return pd.DataFrame()
+
+    # Filter out placeholder "None" values in required columns
+    for column in SL_REQUIRED_NON_NONE_COLUMNS:
+        df_parts = df_parts[df_parts[column] != "None"]
+
+
+    # Fill numeric NaNs with 0.0 and round
+    df_parts[SL_NUMERIC_COLUMNS_TO_ROUND] = (
+        df_parts[SL_NUMERIC_COLUMNS_TO_ROUND].fillna(0.0).round(3)
+    )
+
+    # Final cleanup: drop remaining NaNs, normalize dtypes, deduplicate and sort
+    df_parts = (
+        df_parts.dropna()
+        .convert_dtypes()
+        .drop_duplicates(subset="PartNumber", keep="first")
+        .sort_values(by="PartNumber")
+    )
+
+    print(f"Processed {len(df_parts)} records")
+    return df_parts
 
 # noinspection GrazieInspectionRunner
 def _clean_string_columns(df) -> pd.DataFrame:
@@ -579,6 +676,43 @@ def part_tbl(df_data):
     except Exception as e:
         print(f"Error inserting data into parts_clamps: {e}")
         raise  # Re-raise to allow calling code to handle the error
+
+def part_sl_tbl(df_data):
+    """
+        Build Part Table and insert data into SQL Server.
+
+        Args:
+            df_data: DataFrame containing part data
+
+        Raises:
+            ValueError: If DataFrame is empty or missing required columns
+            Exception: If database operation fails
+        """
+    # Build Parts Table
+    print('Build Part SQL Table')
+    if df_data.empty:
+        print("Warning: Empty DataFrame, skipping SQL insert")
+        return
+
+    # Validate required columns exist
+    required_columns = ['PartNumber', 'Band', 'Housing', 'Screw', 'Feed', 'Saddle']
+    missing_columns = [col for col in required_columns if col not in df_data.columns]
+    if missing_columns:
+        error_msg = f"Missing required columns: {missing_columns}"
+        print(f"Error: {error_msg}")
+        raise ValueError(error_msg)
+
+    data_type_dict = {'PartNumber': sqlalchemy.types.VARCHAR(255), 'Band': sqlalchemy.types.VARCHAR(255),
+                      'Housing': sqlalchemy.types.VARCHAR(255), 'Screw': sqlalchemy.types.VARCHAR(255),
+                      'Feed': sqlalchemy.types.Float, 'Saddle': sqlalchemy.types.VARCHAR(255)}
+    try:
+        df_data.to_sql('parts_surelock', as400.engine, schema='production', if_exists='replace', index=False,
+                         dtype=data_type_dict)
+        print(f"Successfully inserted {len(df_data)} records into parts_surelock")
+    except Exception as e:
+        print(f"Error inserting data into parts_surelock: {e}")
+        raise  # Re-raise to allow calling code to handle the error
+
 
 def band_tbl(df_data):
     """
@@ -811,8 +945,14 @@ def main():
         get_orders()
 
         # Get FileMaker data and add to SQL Server
+
+        # Build Dataframes
         df_parts = parts_df()
+        df_sl_parts = sl_parts_df()
         df_bands = bands_df()
+
+        # Build Tables
+        part_sl_tbl(df_sl_parts)
         part_tbl(df_parts)
         band_tbl(df_bands)
 
