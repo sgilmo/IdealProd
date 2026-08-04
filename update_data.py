@@ -492,7 +492,7 @@ def sl_parts_df() -> pd.DataFrame:
                 WHERE UPPER(tbl8Tridon."Clamp Type") LIKE 'SURELOCK%'
                 """
 
-    print("Getting Part Data From Filemaker")
+    print("Getting Surelock Part Data From Filemaker")
     raw_data = pull_data(CONNFM, sql_parts)
 
     if not raw_data:
@@ -689,7 +689,7 @@ def part_sl_tbl(df_data):
             Exception: If database operation fails
         """
     # Build Parts Table
-    print('Build Part SQL Table')
+    print('Build Surelock Part SQL Table')
     if df_data.empty:
         print("Warning: Empty DataFrame, skipping SQL insert")
         return
