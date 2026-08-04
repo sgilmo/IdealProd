@@ -10,13 +10,18 @@ import os
 
 # Constants
 SUBNETS = ['10.143.50.', '10.143.51.']
+SQL_UID = os.getenv('SQL_UID')
+SQL_PWD = os.getenv('SQL_PWD')
+if SQL_UID is None or SQL_PWD is None:
+    raise RuntimeError('SQL_UID and SQL_PWD environment variables must be set')
+
 SQL_CONNECTION_STRING = f"""
 Driver={{SQL Server}};
 Server=tn-sql;
 Database=autodata;
 autocommit=true;
-UID={os.getenv('SQL_UID')};
-PWD={os.getenv('SQL_PWD')};
+UID={SQL_UID};
+PWD={SQL_PWD};
 """
 MAIL_SERVER = "cas2013.ideal.us.com"
 SENDER_EMAIL = "towerofdespair@idealelab.com"
