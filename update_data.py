@@ -837,7 +837,7 @@ def comp_all_tbl(df_data, tbl_name):
     """
 
     # Build Components Table
-    print('Building Component Inventory SQL Table for all plants' + tbl_name)
+    print('Building Component Inventory SQL Table for all plants ' + tbl_name)
 
     if df_data is None:
         raise ValueError("df_data cannot be None")
@@ -866,7 +866,7 @@ def comp_all_tbl(df_data, tbl_name):
 
 
     try:
-        df_data.to_sql(tbl_name, as400.engine, schema='eng', if_exists='replace', index=False, dtype=data_type_dict)
+        df_data.to_sql(tbl_name, as400.engine, schema='production', if_exists='replace', index=False, dtype=data_type_dict)
         print(f"Successfully inserted {len(df_data)} records into {tbl_name}")
     except Exception as e:
         print(f"Error inserting data into {tbl_name}: {e}")
@@ -964,9 +964,8 @@ def main():
         comp_tbl(df_comp_08, 'tblInv08')
         df_comp_09 = comp_df('09')
         comp_tbl(df_comp_09, 'tblInv09')
-        comp_tbl(df_comp_09, 'tblInvAll')
         df_comp_all = comp_df('00')
-        comp_all_tbl(df_comp_all, 'tblCompInvAllPlants')
+        comp_all_tbl(df_comp_all, 'tblInvAll')
 
 
         # Save to CSV files
