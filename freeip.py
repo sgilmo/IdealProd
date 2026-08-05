@@ -14,7 +14,10 @@ import pyodbc
 import os
 
 # Define Database Connection
-
+SQL_UID = os.getenv('SQL_UID')
+SQL_PWD = os.getenv('SQL_PWD')
+if SQL_UID is None or SQL_PWD is None:
+    raise RuntimeError('SQL_UID and SQL_PWD environment variables must be set')
 # Old Driver
 # Driver={SQL Server Native Client 11.0};
 CONNECTION = f"""
@@ -22,8 +25,8 @@ Driver={{SQL Server}};
 Server=tn-sql;
 Database=autodata;
 autocommit=true;
-UID={os.getenv('SQL_UID')};
-PWD={os.getenv('SQL_PWD')};
+UID={SQL_UID};
+PWD={SQL_PWD};
 """
 
 
