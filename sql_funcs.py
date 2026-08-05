@@ -42,6 +42,11 @@ CONNECTION_STRING = (
     f"PWD={os.getenv('SQL_PWD', '')};"
 )
 
+SQL_UID = os.getenv('SQL_UID')
+SQL_PWD = os.getenv('SQL_PWD')
+if SQL_UID is None or SQL_PWD is None:
+    raise RuntimeError('SQL_UID and SQL_PWD environment variables must be set')
+
 # SQLAlchemy connection
 server = 'tn-sql'
 database = 'autodata'
@@ -49,11 +54,12 @@ driver = 'ODBC+Driver+17+for+SQL+Server'
 port = '1433'
 user = os.getenv('SQL_UID')
 item = os.getenv('SQL_PWD')
-if item is not None:
-    pwd = parse.quote_plus(item)
-    database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
-    # Make Connection
-    engine = create_engine(database_conn)
+UID={SQL_UID}
+PWD={SQL_PWD}
+pwd = parse.quote_plus(SQL_PWD)
+database_conn = f'mssql+pyodbc://{SQL_UID}:{pwd}@{server}:{port}/{database}?driver={driver}'
+# Make Connection
+engine = create_engine(database_conn)
 
 
 def execute_query(query: str, params: list | None = None):
