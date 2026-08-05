@@ -4,7 +4,7 @@
 
 import pyodbc
 import common_funcs
-import os
+import subprocess
 
 
 def get_filemaker_items():
@@ -12,12 +12,12 @@ def get_filemaker_items():
     print('Connecting to FileMaker Server, it will take a bit\n\n')
     cnxn = pyodbc.connect('DSN=FM Clamp ODBC;UID=FMODBC;PWD=FMODBC')
     cursor = cnxn.cursor()
-    os.system('cls')
+    subprocess.run('cls')
     print('Connected to FileMaker Server\n\n')
     input1 = input('Enter Part Number: ')
     input1 = "'" + input1 + "'"
     print('\n')
-    os.system('cls')
+    subprocess.run('cls')
     sql = """
             SELECT Ourpart,"Band A Part Number", "Housing A Part Number",
                 "Screw Part Number" AS Screw, "Band Feed from Band data",
