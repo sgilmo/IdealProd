@@ -42,7 +42,7 @@ BAND_COLUMNS = [
     'PartNumber', 'MatSpec', 'NumNotches', 'BandStampPnA', 'DiePnA', 'DiePnB',
     'DiePnC', 'DiePnD', 'Width', 'Thickness', 'AbutPunch', 'ANotchesRemoved',
     'BNotchesRemoved', 'TangLength', 'BandLength', 'FeedLength', 'DimA', 'DimB', 'DimC', 'DimD', 'DieANote',
-    'DieBNote', 'DieCNote', 'DieDNote'
+    'DieBNote', 'DieCNote', 'DieDNote', 'Process'
 ]
 
 BAND_DTYPE_MAP = {
@@ -70,6 +70,7 @@ BAND_DTYPE_MAP = {
     'DieBNote': str,
     'DieCNote': str,
     'DieDNote': str,
+    'Process': str,
 }
 
 BAND_NUMERIC_DEFAULTS = {
@@ -579,7 +580,7 @@ def bands_df() -> pd.DataFrame:
             "Die A Part Number","Die B Part Number","Die C Part Number","Die D Part Number",
             "Width", "Thickness", "Abutment Punch Data", "A Notches Removed", "B Notches Removed",
             "Tang Length Number", "Band Length", "Feed Length", "Dim A", "Dim B", "Dim C", "Dim D", "Die A Note", 
-            "Die B Note", "Die C Note", "Die D Note"
+            "Die B Note", "Die C Note", "Die D Note", "Process"
         FROM 
             BANDS
     """
@@ -738,7 +739,7 @@ def band_tbl(df_data):
                        'DiePnA', 'DiePnB', 'DiePnC', 'DiePnD', 'Width',
                        'Thickness', 'AbutPunch', 'ANotchesRemoved',
                        'BNotchesRemoved', 'TangLength', 'BandLength', 'FeedLength',
-                        'DimA', 'DimB', 'DimC', 'DimD', 'DieANote', 'DieBNote', 'DieCNote', 'DieDNote']
+                        'DimA', 'DimB', 'DimC', 'DimD', 'DieANote', 'DieBNote', 'DieCNote', 'DieDNote', 'Process']
     missing_columns = [col for col in required_columns if col not in df_data.columns]
     if missing_columns:
         error_msg = f"Missing required columns: {missing_columns}"
@@ -756,7 +757,8 @@ def band_tbl(df_data):
                       'DimA': sqlalchemy.types.Float, 'DimB': sqlalchemy.types.Float,
                       'DimC': sqlalchemy.types.Float, 'DimD': sqlalchemy.types.Float,
                       'DieANote': sqlalchemy.types.VARCHAR(255), 'DieBNote': sqlalchemy.types.VARCHAR(255),
-                      'DieCNote': sqlalchemy.types.VARCHAR(255), 'DieDNote': sqlalchemy.types.VARCHAR(255)}
+                      'DieCNote': sqlalchemy.types.VARCHAR(255), 'DieDNote': sqlalchemy.types.VARCHAR(255),
+                      'Process': sqlalchemy.types.VARCHAR(255)}
     try:
         df_data.to_sql('tblBands', as400.engine, schema='eng', if_exists='replace', index=False,
                          dtype=data_type_dict)
