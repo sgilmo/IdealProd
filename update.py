@@ -509,8 +509,8 @@ def main():
     load_db('tnstrut\\Weld1', 'tblStrut_Exp', dtypes)
     logger.info('Running Runtime for TN Strut Welder 2')
     load_db('tnstrut\\Weld2', 'tblStrut_Exp', dtypes)
-    logger.info('Running Runtime for FastLok 1')
-    load_db('FastLok\\FL2874', 'tblFastLok', dtypes)
+    logger.info('Running Runtime for FL522')
+    load_db('FastLok\\FL522', 'tblFastLok', dtypes)
     logger.info('Running Runtime for FastLok 2')
     load_db('FastLok\\FL2874-2', 'tblFastLok', dtypes)
 
