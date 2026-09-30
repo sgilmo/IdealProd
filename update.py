@@ -58,7 +58,7 @@ MACHINE_CONFIGS = {
         ]
     },
     'fastlok': {
-        'machines': ('FL2874', 'FL2874_2'),
+        'machines': ('FL522', 'FL523'),
         'file_paths': [
             {'source_suffix': 'FailedLoks\\', 'destination': FASTLOK_BASE_PATH + 'Bad\\'},
             {'source_suffix': 'PassedLoks\\', 'destination': FASTLOK_BASE_PATH + 'Good\\'}
@@ -110,37 +110,37 @@ def _filter_data(dataframe, table_name):
     return dataframe
 
 
-def _sanitize_shift_data(dataframe):
+def _sanitize_shift_data(dataframe: pd.DataFrame) -> pd.DataFrame:
     """Sanitize MachShifts-specific data."""
-    if not (common_funcs.check_for_int(dataframe.Eff) and
-            common_funcs.check_for_int(dataframe.NetEff) and
-            common_funcs.check_for_int(dataframe.Util)):
-        # dataframe.update({"Eff": 0.00, "NetEff": 0.00, "Util": 0.00})
-        dataframe.Eff = 0.00
-        dataframe.NetEff = 0.00
-        dataframe.Util = 0.0
-    dataframe['Operator'].fillna("Unknown", inplace=True)
-    dataframe['Operator'].replace(to_replace="Please login", value='Unknown', inplace=True)
+    if not dataframe.empty:
+        first_row = dataframe.iloc[0]
+        if not (common_funcs.check_for_int(first_row['Eff']) and
+                common_funcs.check_for_int(first_row['NetEff']) and
+                common_funcs.check_for_int(first_row['Util'])):
+            dataframe['Eff'] = 0.00
+            dataframe['NetEff'] = 0.00
+            dataframe['Util'] = 0.0
+    dataframe['Operator'] = dataframe['Operator'].fillna("Unknown").replace("Please login", "Unknown")
     return dataframe
 
 
-def _sanitize_operator_data(dataframe):
+def _sanitize_operator_data(dataframe: pd.DataFrame) -> pd.DataFrame:
     """Sanitize opprod-specific data."""
-    if not (common_funcs.check_for_int(dataframe.eff) and
-            common_funcs.check_for_int(dataframe.neteff) and
-            common_funcs.check_for_int(dataframe.util)):
-        # dataframe.update({"eff": 0.00, "neteff": 0.00, "util": 0.00})
-        dataframe.eff = 0.00
-        dataframe.neteff = 0.00
-        dataframe.util = 0.00
+    if not dataframe.empty:
+        first_row = dataframe.iloc[0]
+        if not (common_funcs.check_for_int(first_row['eff']) and
+                common_funcs.check_for_int(first_row['neteff']) and
+                common_funcs.check_for_int(first_row['util'])):
+            dataframe['eff'] = 0.00
+            dataframe['neteff'] = 0.00
+            dataframe['util'] = 0.00
     return dataframe
 
 
 def _fill_defaults(dataframe, default_values):
     """Fill default values in the DataFrame."""
     for column, default_value in default_values.items():
-        dataframe[column].fillna(default_value, inplace=True)
-        dataframe[column].replace(to_replace="Please login", value=default_value, inplace=True)
+        dataframe[column] = dataframe[column].fillna(default_value).replace("Please login", default_value)
 
 
 def _handle_file_error(exception, file_name, folder_paths, error_type):
