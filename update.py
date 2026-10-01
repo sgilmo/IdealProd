@@ -219,8 +219,8 @@ def load_db(folder_name, table_name, dtype_dict):
     for path in folder_paths.values():
         check_dir(path)
 
-    # Initialize an empty DataFrame with correct dtypes
-    processed_data = pd.DataFrame(columns=dtype_dict.keys()).astype(dtype_dict)
+    # Collect filtered frames; concatenated once after all files are read
+    frames = []
 
     # Get a file list from the directory
     file_list = os.listdir(folder_paths["main"])
@@ -241,14 +241,18 @@ def load_db(folder_name, table_name, dtype_dict):
             raw_data = pd.read_csv(f"{folder_paths['main']}{file_name}", names=dtype_dict.keys())
             filtered_data = _filter_data(raw_data, table_name)
             if not filtered_data.empty:
-                processed_data = pd.concat([processed_data, filtered_data.astype(dtype_dict)])
+                frames.append(filtered_data.astype(dtype_dict))
         except (ValueError, Exception) as e:
             _handle_file_error(e, file_name, folder_paths, "DataFrame Loading Error")
         else:
             _move_file(file_name, folder_paths["main"], folder_paths["archive"], "Archived")
 
-    # Reset index for the processed DataFrame
-    processed_data.reset_index(drop=True, inplace=True)
+    # Build the processed DataFrame (empty but correctly typed if no data was collected)
+    if frames:
+        processed_data = pd.concat(frames, ignore_index=True)
+    else:
+        processed_data = pd.DataFrame(columns=dtype_dict.keys()).astype(dtype_dict)
+
 
     # Load data into SQL Server
     try:
