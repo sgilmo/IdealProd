@@ -15,25 +15,8 @@ from timeit import default_timer as timer
 from typing import Mapping, Hashable, Any
 
 # Define Database Connections
-
-CONNAS400_PROD = """
-Driver={iSeries Access ODBC Driver};
-system=10.143.12.10;
-Server=AS400;
-Database=PROD;
-UID=SMY;
-PWD=SMY;
-"""
-
-CONNAS400_CCSDTA = """
-Driver={iSeries Access ODBC Driver};
-system=10.143.12.10;
-Server=AS400;
-Database=CCSDTA;
-UID=SMY;
-PWD=SMY;
-"""
-
+CONNAS400_PROD = as400.CONNAS400_PROD
+CONNAS400_CCSDTA = as400.CONNAS400_CCSDTA
 CONNFM = 'DSN=FM Clamp ODBC;UID=FMODBC;PWD=FMODBC'
 
 # Set Some Constants
@@ -296,7 +279,9 @@ def _build_components_dataframe(raw_records: list,comp_columns: list,comp_dtypes
             (df_inv["ITMID"].str.len() == 7) &
             df_inv["ITMID"].str.endswith("00")
     )
-    df_inv.loc[mask, "ITMID"] = df_inv.loc[mask, "ITMID"].str[:-2]
+    itmid_series = df_inv["ITMID"].astype(str)
+    df_inv.loc[mask, "ITMID"] = itmid_series.loc[mask].str[:-2]
+    # df_inv.loc[mask, "ITMID"] = df_inv.loc[mask, "ITMID"].str[:-2]
 
     # Convert QTY to numeric, coercing invalid entries to NaN
     df_inv["QTY"] = pd.to_numeric(df_inv["QTY"], errors="coerce")

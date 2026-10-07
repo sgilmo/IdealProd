@@ -13,10 +13,12 @@ Diameter test results.
 
 
 import os
+import config
 import shutil
 import pandas as pd
 import csv
 from datetime import datetime
+from pathlib import Path
 import sqlalchemy.exc
 import faults
 import pyodbc
@@ -31,7 +33,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('c:\\PycharmProjects\\IdealProd\\update.log'),
+        logging.FileHandler(config.LOG_FILE),
         logging.StreamHandler()
     ]
 )
@@ -41,11 +43,11 @@ logger = logging.getLogger(__name__)
 BAD_FILE_LIST = []
 
 # Constants for paths
-BASE_PATH = "\\Inetpub\\ftproot\\"
-MAILTO = ["sgilmour@idealtridon.com"]
-BASE_FTP_PATH = "\\inetpub\\ftproot\\acmlogs\\"
-ACM_DESTINATION_PATH = "\\\\tn-file02\\tooling\\2794 ACM Screw Head Vision\\Camera\\Screw Images\\Bad\\"
-FASTLOK_BASE_PATH = "\\\\tn-file02\\tooling\\2874 PREFORM CLAMP AUTOMATION\\Vision\\Lok Images\\"
+BASE_PATH = config.FTP_ROOT
+MAILTO = config.MAILTO
+BASE_FTP_PATH = config.FTP_ROOT / 'acmlogs'
+ACM_DESTINATION_PATH = config.ACM_BAD_SCREWS_PATH
+FASTLOK_BASE_PATH = config.FASTLOK_IMAGES_PATH
 
 # Machine configurations
 MACHINE_CONFIGS = {
@@ -60,8 +62,8 @@ MACHINE_CONFIGS = {
     'fastlok': {
         'machines': ('FL522', 'FL523'),
         'file_paths': [
-            {'source_suffix': 'FailedLoks\\', 'destination': FASTLOK_BASE_PATH + 'Bad\\'},
-            {'source_suffix': 'PassedLoks\\', 'destination': FASTLOK_BASE_PATH + 'Good\\'}
+            {'source_suffix': 'FailedLoks\\', 'destination': FASTLOK_BASE_PATH / 'Bad'},
+            {'source_suffix': 'PassedLoks\\', 'destination': FASTLOK_BASE_PATH / 'Good'}
         ]
     }
 }
@@ -183,26 +185,20 @@ def move_cam_files(fpath, dest):
     i = 0
     for item in dirs:
         if item[-3:] in types:
-            create_time = os.path.getctime(fpath + item)
+            file_path = os.path.join(fpath, item)
+            create_time = os.path.getctime(file_path)
             strdate = datetime.fromtimestamp(create_time).strftime('%Y-%m-%d')
             yr = datetime.fromtimestamp(create_time).strftime('%Y')
             mnth_num = datetime.fromtimestamp(create_time).strftime('%m')
             mnth_short = datetime.fromtimestamp(create_time).strftime('%b')
-            dest_full = dest + yr + "\\" + mnth_num + " - " + mnth_short + "\\"
-            full_path = dest_full + strdate
-            if not os.path.isdir(dest):
-                os.mkdir(dest)
-            if not os.path.isdir(dest + yr + "\\"):
-                os.mkdir(dest + yr + "\\")
-            if not os.path.isdir(dest_full):
-                os.mkdir(dest_full)
-            if not os.path.isdir(full_path):
-                os.mkdir(full_path)
+            dest_full = os.path.join(dest, yr, f"{mnth_num} - {mnth_short}")
+            full_path = os.path.join(dest_full, strdate)
+            os.makedirs(full_path, exist_ok=True)
             print('Moving Camera File: ', item)
-            shutil.move(fpath + item, full_path + "\\" + item)
+            shutil.move(file_path, os.path.join(full_path, item))
             i += 1
     if i > 0:
-        logger.info(str(i) + " Camera File(s) Moved for " + fpath)
+        logger.info(str(i) + " Camera File(s) Moved for " + str(fpath))
     return
 
 
@@ -210,10 +206,10 @@ def move_cam_files(fpath, dest):
 def load_db(folder_name, table_name, dtype_dict):
     """Load Operator Production Data into the SQL Server."""
     folder_paths = {
-        "main": f"{BASE_PATH}{folder_name}\\",
-        "bad": f"{BASE_PATH}{folder_name}_bad\\",
-        "archive": f"{BASE_PATH}{folder_name}_archive\\",
-        "obs": f"{BASE_PATH}obs_data\\",
+        "main": os.path.join(str(BASE_PATH), folder_name) + "\\",
+        "bad": os.path.join(str(BASE_PATH), f"{folder_name}_bad") + "\\",
+        "archive": os.path.join(str(BASE_PATH), f"{folder_name}_archive") + "\\",
+        "obs": os.path.join(str(BASE_PATH), "obs_data") + "\\",
     }
     # Ensure the necessary directories exist
     for path in folder_paths.values():
@@ -269,40 +265,39 @@ def load_db(folder_name, table_name, dtype_dict):
 
 def log_bad_row(badrow, dirname, desc):
     """Log Bad Row Reads."""
-    badrowfilepath = "\\Inetpub\\ftproot\\" + dirname + "\\"
+    badrowfilepath = config.FTP_ROOT / dirname
     dtformat = '%Y%m%d%H%M%S'
     # Log bad data rows
-    filename = open(badrowfilepath + "bad_" +
-                    datetime.now().strftime(dtformat) + ".log", "a")
-    strdata = ','.join([str(z) for z in badrow])
-    strdata = strdata + "\n" + desc + "\n"
-    filename.write(strdata)
-    filename.close()
+    log_file = badrowfilepath / f"bad_{datetime.now().strftime(dtformat)}.log"
+    with open(log_file, "a") as filename:
+        strdata = ','.join([str(z) for z in badrow])
+        strdata = strdata + "\n" + desc + "\n"
+        filename.write(strdata)
     return
 
 
 def log_test_data(fpath, test_type):
     """Log Ship Diameter Tests to SQL Server."""
-    testbadfilepath = "\\Inetpub\\ftproot\\acmtestbad\\"
+    testbadfilepath = config.FTP_ROOT / 'acmtestbad'
     dbcnxn = pyodbc.connect(CONNECTION_STRING)
     cursor = dbcnxn.cursor()
-    filepath = fpath + "\\"
+    filepath = Path(fpath)
     filelist = os.listdir(filepath)
     for filename in filelist:
         badfile = 0
-        inputfile = open(filepath + filename)
+        inputfile = open(filepath / filename)
         parser = csv.reader(inputfile)
         for row in parser:
             sql = ""
             rowdata = ()
             if test_type == 'CG':
-                print("Processing Ship Dia data file: " + filepath + filename)
+                print(f"Processing Ship Dia data file: {filepath / filename}")
                 sql = """INSERT INTO production.AcmShipDia (ID,Tests,Machine,MachIP,TestReq,Operator,Part,DiaMin,
                                     DiaMax,TestComp,Reading)
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
                 rowdata = (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10])
             elif test_type == 'TG':
-                print("Processing Thickness Test data file: " + filepath + filename)
+                print(f"Processing Thickness Test data file: {filepath / filename}")
                 sql = """INSERT INTO production.AcmThick (ID,Machine,MachIP,TestReq,Operator,Part,Spec,TestComp,Reading)
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);"""
                 rowdata = (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8])
@@ -322,10 +317,10 @@ def log_test_data(fpath, test_type):
 
         inputfile.close()
         if badfile == 0:
-            os.remove(filepath + filename)
+            os.remove(filepath / filename)
         elif badfile == 1:
             BAD_FILE_LIST.append("ACMTest_" + filename)
-            movefile(fpath + filename, testbadfilepath + filename)
+            movefile(filepath / filename, testbadfilepath / filename)
             print("Could not load " + filename)
     dbcnxn.close()
     return
@@ -333,18 +328,18 @@ def log_test_data(fpath, test_type):
 
 def log_conegage_data():
     """Log Ship Diameter Tests to SQL Server."""
-    filepath = "\\Inetpub\\ftproot\\conegage\\"
+    filepath = config.FTP_ROOT / 'conegage'
     dbcnxn = pyodbc.connect(CONNECTION_STRING)
     cursor = dbcnxn.cursor()
     filelist = os.listdir(filepath)
     for filename in filelist:
-        inputfile = open(filepath + filename)
+        inputfile = open(filepath / filename)
         parser = csv.reader(inputfile)
         for row in parser:
             sql = ""
             rowdata = ()
             if filename[:7] == 'shipdia':
-                print("Processing Ship Dia data file: " + filepath + filename)
+                print(f"Processing Ship Dia data file: {filepath / filename}")
                 sql = """INSERT INTO production.cgage_ShipDia (DateTime,ID,TestLog_NumTests,
                          TestLog_Mach,TestLog_ReqTime,
                          TestLog_Operator,TestLog_Part,TestLog_DiaMin,
@@ -352,7 +347,7 @@ def log_conegage_data():
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
                 rowdata = (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10])
             elif filename[:5] == 'thick':
-                print("Processing Thickness Test data file: " + filepath + filename)
+                print(f"Processing Thickness Test data file: {filepath / filename}")
                 sql = """INSERT INTO production.cgage_Thick (DateTime,ID,TestLog_Mach,TestLog_ReqTime,TestLog_Operator,
                          TestLog_Part,TestLog_Thickness,TestLog_TestComp,TestLog_Reading)
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);"""
@@ -367,7 +362,7 @@ def log_conegage_data():
                 logger.error("Database Error: " + str(row[0]) + ": " + msg)
 
         inputfile.close()
-        os.remove(filepath + filename)
+        os.remove(filepath / filename)
     dbcnxn.close()
     return
 
@@ -389,14 +384,15 @@ def check_file_size(srcpath, ftype):
     # Checks file size in the directory listing
     # Moves zero length files to an alternate directory
     # for later inspection
-    zerolenfiles = "\\Inetpub\\ftproot\\acmzero\\"
+    zerolenfiles = config.FTP_ROOT / 'acmzero'
+    srcpath = Path(srcpath)
     filelist = (filename for filename in os.listdir(srcpath)
-                if os.path.isfile(os.path.join(srcpath, filename)))
+                if os.path.isfile(srcpath / filename))
     for item in filelist:
-        statinfo = os.stat(srcpath + item)
+        statinfo = os.stat(srcpath / item)
         if statinfo.st_size == 0:
             BAD_FILE_LIST.append("ZeroLen_" + ftype + "_" + item)
-            shutil.move(srcpath + item, zerolenfiles)
+            shutil.move(srcpath / item, zerolenfiles)
     return
 
 
@@ -419,10 +415,10 @@ def ensure_directory_exists(directory_path):
 def set_cam_files():
     """Move Camera Files to Server from Machines Equipped With Cameras"""
     try:
-        for machine_type, config in MACHINE_CONFIGS.items():
+        for machine_type, configs in MACHINE_CONFIGS.items():
             logger.info(f'Processing {machine_type.upper()} machines')
-            for machine in config['machines']:
-                for path_config in config['file_paths']:
+            for machine in configs['machines']:
+                for path_config in configs['file_paths']:
                     source_path = os.path.join(BASE_FTP_PATH, machine, path_config['source_suffix'])
                     destination_path = path_config['destination']
 
@@ -432,7 +428,7 @@ def set_cam_files():
                         continue
 
                     # Ensure destination directory exists
-                    ensure_directory_exists(os.path.dirname(destination_path))
+                    ensure_directory_exists(destination_path)
 
                     # Move files
                     try:
@@ -447,8 +443,8 @@ def set_cam_files():
 def main():
     """Main Function."""
     # Set some paths
-    shipdiapath = "\\Inetpub\\ftproot\\acmtests\\ShipDia\\"
-    thickpath = "\\Inetpub\\ftproot\\acmtests\\Thickness\\"
+    shipdiapath = config.FTP_ROOT / 'acmtests' / 'ShipDia'
+    thickpath = config.FTP_ROOT / 'acmtests' / 'Thickness'
 
     start = timer()
     logger.info("Program Started")

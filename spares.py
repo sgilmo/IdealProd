@@ -19,9 +19,13 @@ def main():
     sql_funcs.update_dbusage(as400.get_usage())
     sql_funcs.sync_usage(schema="dbo", src_table="tblUsage_temp", dst_table="tblUsage")
 
+    # Unrelated to spare parts but we want the sales data to update daily
+    sql_funcs.update_dbsales(as400.get_sales_hist())
+    sql_funcs.sync_usage(schema="eng", src_table="FPSLS_temp", dst_table="FPSLS")
+
     # Add only new records to tblUsageM
-    sql_funcs.update_dbusage_mex(as400.get_usage_mex())
-    sql_funcs.sync_usage(schema="dbo", src_table="tblUsageM_temp", dst_table="tblUsageM")
+    # sql_funcs.update_dbusage_mex(as400.get_usage_mex())
+    # sql_funcs.sync_usage(schema="dbo", src_table="tblUsageM_temp", dst_table="tblUsageM")
 
     # Add only new records to tblProd
     sql_funcs.update_dbprod(as400.get_prod())

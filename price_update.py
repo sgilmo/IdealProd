@@ -5,6 +5,7 @@ Pull Current Pricelist from Automation Direct Website and
 Load it on to existing SQL Server Table.
 """
 import io
+import config
 import logging
 from timeit import default_timer as timer
 from typing import Dict, Optional
@@ -28,26 +29,20 @@ SHEET_NAME = "ADC Price List with Categories "
 OUTPUT_TABLE = "Adirect"
 OUTPUT_SCHEMA = "production"
 
-# Database connection constants
-DB_SERVER = 'tn-sql'
-DB_NAME = 'autodata'
-DB_DRIVER = 'ODBC+Driver+17+for+SQL+Server'
-DB_USER = 'production'
-DB_PASSWORD = parse.quote_plus("Auto@matics")
-DB_PORT = '1433'
-
-
 def get_db_connection() -> Engine:
     """Create and return a database connection engine.
 
     Returns:
         Engine: SQLAlchemy database connection engine
     """
-    connection_string = (
-        f'mssql+pyodbc://{DB_USER}:{DB_PASSWORD}@{DB_SERVER}:{DB_PORT}/{DB_NAME}'
-        f'?driver={DB_DRIVER}'
+
+    # SQLAlchemy connection
+    database_conn = (
+        f"mssql+pyodbc://{config.SQL_UID}:{parse.quote_plus(config.SQL_PWD)}"
+        f"@{config.SQL_SERVER}:{config.SQL_PORT}/{config.SQL_DATABASE}"
+        f"?driver={parse.quote_plus(config.SQL_DRIVER)}"
     )
-    return create_engine(connection_string)
+    return create_engine(database_conn)
 
 
 def read_pricelist() -> Optional[pd.DataFrame]:

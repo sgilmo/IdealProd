@@ -5,6 +5,8 @@
 
 import pandas as pd
 import pyodbc
+import os
+import config
 import sqlalchemy.types
 from sqlalchemy import create_engine
 from urllib import parse
@@ -17,38 +19,39 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# Define Database Connection for PROD
-CONNAS400_PROD = """
-Driver={iSeries Access ODBC Driver};
-system=10.143.12.10;
-Server=AS400;
-Database=PROD;
-UID=SMY;
-PWD=SMY;
-"""
+def _as400_conn_str(database):
+    """Build an iSeries ODBC connection string for the given library."""
+    return (
+        f"Driver={{{config.AS400_DRIVER}}};"
+        f"system={config.AS400_SYSTEM};"
+        f"Server={config.AS400_SERVER};"
+        f"Database={database};"
+        f"UID={config.AS400_UID};"
+        f"PWD={config.AS400_PWD};"
+    )
 
-# Define Database Connection for CCSDTA
-CONNAS400_CCSDTA = """
-Driver={iSeries Access ODBC Driver};
-system=10.143.12.10;
-Server=AS400;
-Database=CCSDTA;
-UID=SMY;
-PWD=SMY;
-"""
 
-# Set up Database Connection to SQL Server
-server = 'tn-sql'
-database = 'autodata'
-driver = 'ODBC+Driver+17+for+SQL+Server'
-user = 'production'
-pwd = parse.quote_plus("Auto@matics")
-port = '1433'
-database_conn = f'mssql+pyodbc://{user}:{pwd}@{server}:{port}/{database}?driver={driver}'
+# Define Database Connections
+CONNAS400_PROD = _as400_conn_str('PROD')
+CONNAS400_CCSDTA = _as400_conn_str('CCSDTA')
+CONNAS400_SALESHIST = _as400_conn_str('SALESHIST')
+
+
+# Database connection settings
+SQL_UID = os.getenv('SQL_UID')
+SQL_PWD = os.getenv('SQL_PWD')
+if SQL_UID is None or SQL_PWD is None:
+    raise RuntimeError('SQL_UID and SQL_PWD environment variables must be set')
+
+# SQLAlchemy connection
+database_conn = (
+    f"mssql+pyodbc://{config.SQL_UID}:{parse.quote_plus(config.SQL_PWD)}"
+    f"@{config.SQL_SERVER}:{config.SQL_PORT}/{config.SQL_DATABASE}"
+    f"?driver={parse.quote_plus(config.SQL_DRIVER)}"
+)
 # Make Connection
 engine = create_engine(database_conn)
 conn_sql = engine.connect()
-
 
 # Define some globals
 TABLE_FPSPRMAST1 = "PROD.FPSPRMAST1"
@@ -325,6 +328,14 @@ def connect_to_db():
         logger.error(f"Database connection failed: {ex}")
         raise
 
+def connect_to_saleshist_db():
+    """Establish a Database Connection."""
+    try:
+        return pyodbc.connect(CONNAS400_SALESHIST)
+    except pyodbc.Error as ex:
+        print(f"Database connection failed: {ex}")
+        raise
+
 
 def process_query_result(cursor, query_sql, description):
     """Execute a query and return the result with error handling."""
@@ -449,6 +460,35 @@ def get_usage():
                 row[0] = make_date(row[0])
                 usage_list.append([str(x) for x in row])
     return usage_list
+
+def get_sales_hist():
+    """Get Spare Part Usage Data From iSeries AS400."""
+    # tables = ('FPSLS0', 'FPSLS1', 'FPSLS2', 'FPSLS3')
+    tables = ['FPSLS0']
+    sales_list = []
+
+    with connect_to_saleshist_db() as db_connection:
+        cursor = db_connection.cursor()
+        for table in tables:
+            # Column order must match sql_funcs.INSERT_SALES
+            query_sql = f"""
+                SELECT STRIP(SALESHIST.{table}.SL_PRODUCT_CODE),
+                       STRIP(SALESHIST.{table}.SL_CUSTOMER_NUMBER),
+                       STRIP(SALESHIST.{table}.SL_PART_NUMBER),
+                       STRIP(SALESHIST.{table}.SL_WAREHOUSE),
+                       SALESHIST.{table}.SL_ACCTG_YEAR,
+                       SALESHIST.{table}.SL_ACCTG_MONTH,
+                       SALESHIST.{table}.SL_ACCTG_DAY,
+                       SALESHIST.{table}.SL_ITEM_QUANTITY,
+                       SALESHIST.{table}.SL_ITEM_AMOUNT,
+                       STRIP(SALESHIST.{table}.SL_ST_NAME),
+                       STRIP(SALESHIST.{table}.SL_ST_STATE)
+                FROM SALESHIST.{table}
+            """
+            result = process_query_result(cursor, query_sql, f"AS400 Sales Records from {table}")
+            for row in result:
+                sales_list.append([str(x) for x in row])
+    return sales_list
 
 def get_usage_mex():
     """Get Spare Part Usage Data From iSeries AS400."""

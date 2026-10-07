@@ -1,5 +1,6 @@
 import pyodbc
 import os
+import config
 import common_funcs
 from urllib import parse
 from sqlalchemy import create_engine
@@ -10,6 +11,7 @@ EMAIL_RECIPIENTS = ["elab@idealtridon.com"]
 TRUNCATE_EMPLOYEE_TABLE = "TRUNCATE TABLE production.EMPLOYEE"
 TRUNCATE_TBLUSAGE = "TRUNCATE TABLE dbo.tblUsage_temp"
 TRUNCATE_TBLUSAGE_MEX = "TRUNCATE TABLE dbo.tblUsageM_temp"
+TRUNCATE_TBLSALES = "TRUNCATE TABLE eng.FPSLS_temp"
 TRUNCATE_TBLPROD = "TRUNCATE TABLE eng.tblProd_temp"
 TRUNCATE_TBLINVENTORY = "TRUNCATE TABLE dbo.tblInventory"
 TRUNCATE_TBLORDERS = "TRUNCATE TABLE dbo.tblOrders"
@@ -18,6 +20,8 @@ TRUNCATE_TBLALLORDERS = "TRUNCATE TABLE dbo.tblOrdersAll"
 INSERT_EMPLOYEE = """INSERT INTO production.EMPLOYEE (ID, NAME, ROLE) VALUES (?, ?, ?)"""
 INSERT_USAGE = """INSERT INTO dbo.tblUsage_temp (Date, Part, EngPart, Dept, Acct, Clock, Machine, Qty, Cost, SubTotal) 
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+INSERT_SALES = """INSERT INTO eng.FPSLS_temp (SL_PRODUCT_CODE, SL_CUSTOMER_NUMBER, SL_PART_NUMBER, SL_WAREHOUSE, SL_ACCTG_YEAR, SL_ACCTG_MONTH, SL_ACCTG_DAY, SL_ITEM_QUANTITY, SL_ITEM_AMOUNT, SL_ST_NAME, SL_ST_STATE) 
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
 INSERT_USAGE_MEX = """INSERT INTO dbo.tblUsageM_temp (Date, Part, EngPart, Dept, Acct, Clock, Machine, Qty, Cost, SubTotal) 
                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
 INSERT_INVENTORY = """INSERT INTO dbo.tblInventory (PartNum, EngPartNum, Desc1, Desc2, Mfg, MfgPn, Cabinet, Drawer, 
@@ -34,30 +38,23 @@ INSERT_ALL_ORDERS = """INSERT INTO dbo.tblOrdersAll (Plant, OrderNum, PartNumber
                        VALUES (?, ?, ?, ?, ?, dbo.JulianToDate(?), dbo.JulianToDate(?), dbo.JulianToDate(?))"""
 
 # Database connection settings
-CONNECTION_STRING = (
-    f"Driver={{SQL Server}};"
-    f"Server=tn-sql;"
-    f"Database=autodata;"
-    f"UID={os.getenv('SQL_UID', '')};"
-    f"PWD={os.getenv('SQL_PWD', '')};"
-)
-
 SQL_UID = os.getenv('SQL_UID')
 SQL_PWD = os.getenv('SQL_PWD')
 if SQL_UID is None or SQL_PWD is None:
     raise RuntimeError('SQL_UID and SQL_PWD environment variables must be set')
 
+CONNECTION_STRING = (
+    f"Driver={{SQL Server}};Server={config.SQL_SERVER};Database={config.SQL_DATABASE};"
+    f"UID={config.SQL_UID};PWD={config.SQL_PWD};"
+)
+
+
 # SQLAlchemy connection
-server = 'tn-sql'
-database = 'autodata'
-driver = 'ODBC+Driver+17+for+SQL+Server'
-port = '1433'
-user = os.getenv('SQL_UID')
-item = os.getenv('SQL_PWD')
-UID={SQL_UID}
-PWD={SQL_PWD}
-pwd = parse.quote_plus(SQL_PWD)
-database_conn = f'mssql+pyodbc://{SQL_UID}:{pwd}@{server}:{port}/{database}?driver={driver}'
+database_conn = (
+    f"mssql+pyodbc://{config.SQL_UID}:{parse.quote_plus(config.SQL_PWD)}"
+    f"@{config.SQL_SERVER}:{config.SQL_PORT}/{config.SQL_DATABASE}"
+    f"?driver={parse.quote_plus(config.SQL_DRIVER)}"
+)
 # Make Connection
 engine = create_engine(database_conn)
 
@@ -118,6 +115,11 @@ def update_dbusage(data: list):
     """Update Spare Part Usage Data."""
     print("Updating Spare Part Usage Data...")
     update_database(data, TRUNCATE_TBLUSAGE, INSERT_USAGE)
+
+def update_dbsales(data: list):
+    """Update Spare Part Usage Data."""
+    print("Updating historical sales Data...")
+    update_database(data, TRUNCATE_TBLSALES, INSERT_SALES)
 
 def update_dbusage_mex(data: list):
     """Update Spare Part Usage Data."""

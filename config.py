@@ -23,6 +23,13 @@ SQL_DRIVER = os.getenv('SQL_DRIVER', 'ODBC Driver 17 for SQL Server')
 SQL_UID = _require('SQL_UID')
 SQL_PWD = _require('SQL_PWD')
 
+# AS400 (iSeries)
+AS400_DRIVER = os.getenv('AS400_DRIVER', 'iSeries Access ODBC Driver')
+AS400_SYSTEM = os.getenv('AS400_SYSTEM', '10.143.12.10')
+AS400_SERVER = os.getenv('AS400_SERVER', 'AS400')
+AS400_UID = _require('AS400_UID')
+AS400_PWD = _require('AS400_PWD')
+
 # Paths
 APP_DIR = Path(__file__).resolve().parent
 LOG_FILE = Path(os.getenv('IDEALPROD_LOG_FILE', APP_DIR / 'update.log'))
