@@ -33,9 +33,10 @@ AS400_PWD = _require('AS400_PWD')
 # Paths
 APP_DIR = Path(__file__).resolve().parent
 LOG_FILE = Path(os.getenv('IDEALPROD_LOG_FILE', APP_DIR / 'update.log'))
-FTP_ROOT = Path(os.getenv('FTP_ROOT', r'C:\Inetpub\ftproot'))
+FTP_ROOT = Path(os.getenv('FTP_ROOT', r'\\Tn-datacollect2\Inetpub\ftproot'))
 ACM_BAD_SCREWS_PATH = Path(os.getenv('ACM_BAD_SCREWS_PATH', r'\\tn-file02\tooling\2794 ACM Screw Head Vision\Camera\Screw Images\Bad'))
 FASTLOK_IMAGES_PATH = Path(os.getenv('FASTLOK_IMAGES_PATH', r'\\tn-file02\tooling\2874 PREFORM CLAMP AUTOMATION\Vision\Lok Images'))
+MACH_ROOT = Path(os.getenv('MACH_ROOT', r'\\tn-file02\dept\Engineering\Engineering Data\Elab\Machines'))
 
 # Email
 MAILTO = _list('IDEALPROD_MAILTO', 'sgilmour@idealtridon.com')
