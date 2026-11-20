@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import os
+import config
 import time
 from pathlib import Path
 from timeit import default_timer as timer
@@ -18,12 +19,12 @@ from timeit import default_timer as timer
 DAYS_TO_KEEP = 10
 
 ROOTS = (
-    r"\\tn-san-fileserv\TOOLING\2794 ACM Screw Head Vision\Camera\Screw Images\Bad",
-    r"\\tn-san-fileserv\TOOLING\2874 PREFORM CLAMP AUTOMATION\Vision\Lok Images\Bad",
-    r"\\tn-san-fileserv\TOOLING\2874 PREFORM CLAMP AUTOMATION\Vision\Lok Images\Good",
+    config.ACM_BAD_SCREWS_PATH,
+    config.FASTLOK_IMAGES_PATH / 'Bad',
+    config.FASTLOK_IMAGES_PATH / 'Good',
 )
 
-LOG_FILE = r"c:\logs\cleanup.log"
+LOG_FILE = config.APP_DIR / 'cleanup.log'
 DELETE_EMPTY_DIRECTORIES = False  # safer default
 
 
