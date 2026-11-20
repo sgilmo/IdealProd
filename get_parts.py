@@ -15,6 +15,7 @@ to the 'ReviewQue' directory, and the Elab will be notified via email.
 """
 
 import json
+import config
 import os
 import csv
 import ftplib
@@ -33,7 +34,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # define file handler and set formatter
-file_handler = logging.FileHandler('c:\\logs\\get_parts.log')
+file_handler = logging.FileHandler(config.APP_DIR / 'get_parts.log')
 formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 file_handler.setFormatter(formatter)
 
@@ -131,13 +132,11 @@ def compare_csv_files(file1, file2):
 
 def log_changes(chglist, path):
     """Create log file for changes."""
-    file_connect = open(path + "upd_" + datetime.now().strftime(FORMAT) + ".log", "w")
+    file_connect = open(path / f"upd_{datetime.now().strftime(FORMAT)}.log", "w")
     # Add changed parts to file
     file_connect.write('Parts that were updated:\n')
     for location, row in chglist:
         file_connect.write(f"{location}: {row}" + '\n')
-    #for part in chglist:
-        #file_connect.write(part + '\n')
     file_connect.close()
     return
 
@@ -201,8 +200,9 @@ def copy_and_rename(source_path, dest_folder, new_name):
 
 def save_history(filename, partpath, histpath):
     """Move file to history folder with timestamp as new name."""
-    shutil.copy2(partpath + filename, histpath +
-                 datetime.now().strftime(FORMAT) + ".csv")
+    source_file = partpath / filename
+    history_file = histpath / f"{datetime.now().strftime(FORMAT)}.csv"
+    shutil.copy2(source_file, history_file)
     return
 
 
@@ -224,27 +224,14 @@ def main():
     # Define file paths
     old_part_filename = 'parts.csv'
     new_part_filename = 'parts_clamps.csv'
-    json_file = r'C:\Python Projects\IdealProd\acm_map.json'
-    parthistpath = r'C:\inetpub\ftproot\acmparts\history\\'
-    part_folder = r'C:\inetpub\ftproot\acmparts\\'
-    maintpath = "\\\\tn-san-fileserv\\dept\\Engineering\\Engineering Data\\Elab\\Machines\\MAINT\\"
-    quepath = "\\\\tn-san-fileserv\\dept\\Engineering\\Engineering Data\\Elab\\Machines\\ReviewQue\\"
+    json_file = config.APP_DIR / 'acm_map.json'
+    parthistpath = config.FTP_ROOT / 'acmparts' / 'history'
+    part_folder = config.FTP_ROOT / 'acmparts'
+    maintpath = config.MACH_ROOT / 'MAINT'
+    quepath = config.MACH_ROOT / 'ReviewQue'
 
-    # If Developing Locally updates the paths to accomodate the local workstation
-    if HOSTNAME == 'BNAWS625':
-        json_file = r'C:\Python Projects\IdealProd2\acm_map.json'
-        parthistpath = r'Y:\inetpub\ftproot\acmparts\history\\'
-        part_folder = r'Y:\inetpub\ftproot\acmparts\\'
-
-    if HOSTNAME == 'TN-DATACOLLECT2':
-        json_file = r'C:\PycharmProjects\IdealProd\acm_map.json'
-
-    if HOSTNAME == 'Serenity':
-        json_file = r'C:\Python Projects\IdealProd\acm_map.json'
-
-
-    curr_file = part_folder + old_part_filename
-    new_file = part_folder + new_part_filename
+    curr_file = part_folder / old_part_filename
+    new_file = part_folder / new_part_filename
 
     start = timer()
 
@@ -287,7 +274,6 @@ def main():
     # Check Maintenance Directory for New Files
     if HOSTNAME != 'Serenity':
         check_maint_files(maintpath, quepath)
-    # update_scrdb(get_file_screws(partdatapath))
     msg = "Total Time = " + str(round((timer() - start), 3)) + " sec"
     logger.info(msg)
     print(msg)
