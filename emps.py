@@ -4,13 +4,12 @@ Get employee information from AS400, update SQL Server database with that data,
 and create a CSV file in the FTP root directory.
 """
 import csv
+import config
 from typing import List, Literal, cast
 import as400
 import sql_funcs
 
 # Constants
-OUTPUT_PATH = "\\Inetpub\\ftproot\\"
-OUTPUT_FILENAME = "emps.csv"
 NO_LOGIN_USER = ['0000', 'Please Log In', 'DEF']
 CSV_QUOTE_NONE = cast(Literal[3], csv.QUOTE_NONE)
 
@@ -44,6 +43,8 @@ def create_csv_file(employee_data: List[List], filepath: str) -> None:
         employee_data: List of employee records
         filepath: Path where CSV file will be saved
     """
+
+    print('Building CSV file')
     # Add no-login user to the data for export
     data_for_export = employee_data.copy()
     data_for_export.append(NO_LOGIN_USER)
@@ -69,7 +70,7 @@ def main() -> None:
     update_sql_database(employee_data)
 
     # Create CSV file for export to machines
-    output_path = f"{OUTPUT_PATH}{OUTPUT_FILENAME}"
+    output_path = config.FTP_ROOT / 'emps.csv'
     create_csv_file(employee_data, output_path)
 
     # Update Scrap Table
