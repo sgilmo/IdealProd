@@ -2,6 +2,7 @@
 """Network connectivity checker for multiple IP addresses."""
 
 import logging
+import config
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -19,7 +20,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('c:\\PycharmProjects\\IdealProd\\network_check.log'),
+        logging.FileHandler(config.APP_DIR / 'network_check.log'),
         logging.StreamHandler()
     ]
 )
@@ -42,7 +43,7 @@ class NetworkDevice:
 class NetworkChecker:
     """Handles network connectivity checking operations."""
 
-    def __init__(self, config_file: str = "c:\\PycharmProjects\\IdealProd\\network_devices.json"):
+    def __init__(self, config_file: str = config.APP_DIR / 'network_devices.json'):
         self.config_file = Path(config_file)
         self.devices: List[NetworkDevice] = []
         self.ping_count = 1
