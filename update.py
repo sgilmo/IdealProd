@@ -49,7 +49,7 @@ BASE_FTP_PATH = config.FTP_ROOT / 'acmlogs'
 ACM_DESTINATION_PATH = config.ACM_BAD_SCREWS_PATH
 FASTLOK_BASE_PATH = config.FASTLOK_IMAGES_PATH
 
-# Machine configurations
+# Machine configurations for machines with cameras
 MACHINE_CONFIGS = {
     'acm': {
         'machines': ('LACM384', 'ACM357', 'LACM386', 'ACM372', 'LACM383', 'LACM391',
