@@ -9,6 +9,7 @@ inserted into the database.
 import csv
 import datetime
 import os
+import config
 import shutil
 import pandas as pd
 import pyodbc
@@ -55,8 +56,10 @@ def get_faults():
     cursor = dbcnxn.cursor()
 
     # Set path to data directories
-    dirpath = "\\Inetpub\\ftproot\\acmlogs\\"
-    archive_path = "\\Inetpub\\ftproot\\fault_archive\\"
+    #dirpath = "\\Inetpub\\ftproot\\acmlogs\\"
+    dirpath = config.FTP_ROOT / 'acmlogs'
+    #archive_path = "\\Inetpub\\ftproot\\fault_archive\\"
+    archive_path = config.FTP_ROOT / 'fault_archive'
     today = date.today()
 
     # Define Variables
@@ -69,7 +72,8 @@ def get_faults():
     # Used to filter directory clutter
     ignore_list = ['Archive', 'logs', 'fltdata.csv', 'badfiles', 'FailedScrews', 'FailedLoks', 'temp', 'PassedLoks']
     for machine in dirlist:
-        fltdatapath = dirpath + machine + "\\"
+        #fltdatapath = dirpath + machine + "\\"
+        fltdatapath = dirpath / machine
         filelist = os.listdir(fltdatapath)
         for filename in filelist:
             if (filename[len(filename) - 3:] == 'csv') and (filename not in ignore_list):
@@ -79,7 +83,7 @@ def get_faults():
 
             if filename not in ignore_list:
                 print("Processing: " + filename)
-                inputfile = open(fltdatapath + filename)
+                inputfile = open(fltdatapath / filename)
                 parser = csv.reader(inputfile)
                 next(parser)
                 badfile = 0
@@ -150,6 +154,9 @@ def get_faults():
                                 fltdatapath + 'badfiles\\' + filename)
                 else:
                     # os.remove(fltdatapath + filename)
-                    shutil.move(fltdatapath + filename, archive_path + machine + filename)
+                    source_file = fltdatapath / filename
+                    history_file = archive_path / f"{machine + filename}"
+                    shutil.move(source_file, history_file)
+                    #shutil.move(fltdatapath / filename, archive_path / filename)
     dbcnxn.close()
     return
