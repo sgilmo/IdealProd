@@ -1,80 +1,59 @@
-# !/usr/bin/env python
-"""
-Get employee information from AS400, update SQL Server database with that data,
-and create a CSV file in the FTP root directory.
-"""
+"""Refresh SQL Server employee data and publish the machine login CSV."""
+
 import csv
-import config
-from typing import List, Literal, cast
+import logging
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+
 import as400
+import config
 import sql_funcs
 
-# Constants
-NO_LOGIN_USER = ['0000', 'Please Log In', 'DEF']
-CSV_QUOTE_NONE = cast(Literal[3], csv.QUOTE_NONE)
-
-
-def fetch_employee_data() -> List[List]:
-    """
-    Fetch employee data from AS400 and convert tuples to lists.
-
-    Returns:
-        List[List]: List of employee data records
-    """
-    emp_tuple = as400.get_emps()
-    return [list(item) for item in emp_tuple]
-
-
-def update_sql_database(employee_data: List[List]) -> None:
-    """
-    Update SQL Server database with employee data.
-
-    Args:
-        employee_data: List of employee records
-    """
-    sql_funcs.update_emps(employee_data)
-
-
-def create_csv_file(employee_data: List[List], filepath: str) -> None:
-    """
-    Create a CSV file with employee data.
-
-    Args:
-        employee_data: List of employee records
-        filepath: Path where CSV file will be saved
-    """
-
-    print('Building CSV file')
-    # Add no-login user to the data for export
-    data_for_export = employee_data.copy()
-    data_for_export.append(NO_LOGIN_USER)
-
-    with open(filepath, "w", newline='') as output_file:
-        csv_writer = csv.writer(
-            output_file,
-            delimiter=',',
-            quoting=CSV_QUOTE_NONE,
-            escapechar='\\'
-        )
-        csv_writer.writerows(data_for_export)
+logger = logging.getLogger(__name__)
+NO_LOGIN_USER = ('0000', 'Please Log In', 'DEF')
+CSV_QUOTE_NONE = csv.QUOTE_NONE
 
 
 def main() -> None:
-    """
-    Main function to orchestrate the employee data processing.
-    """
-    # Get employee data from AS400
-    employee_data = fetch_employee_data()
+    """Refresh employee data, then rebuild the scrap table."""
+    logger.info("Fetching employee records from AS400")
+    employee_data = as400.get_emps()
+    logger.info("Fetched %d employee rows including the engineering login", len(employee_data))
 
-    # Update SQL Server database
-    update_sql_database(employee_data)
+    output_path: Path = config.FTP_ROOT / 'emps.csv'
+    staged_path = None
+    try:
+        logger.info("Staging employee CSV in %s", output_path.parent)
+        with NamedTemporaryFile(
+            mode='w', newline='', dir=output_path.parent, suffix='.tmp', delete=False
+        ) as output_file:
+            staged_path = Path(output_file.name)
+            writer = csv.writer(output_file, quoting=CSV_QUOTE_NONE, escapechar='\\')
+            writer.writerows(employee_data)
+            writer.writerow(NO_LOGIN_USER)
 
-    # Create CSV file for export to machines
-    output_path = config.FTP_ROOT / 'emps.csv'
-    create_csv_file(employee_data, output_path)
+        logger.info("Refreshing SQL Server employee table")
+        sql_funcs.update_emps(employee_data)
+        logger.info("SQL Server employee refresh committed")
 
-    # Update Scrap Table
+        try:
+            staged_path.replace(output_path)
+        except OSError:
+            logger.error("SQL committed but publishing %s failed", output_path)
+            raise
+        logger.info("Published %s", output_path)
+    finally:
+        if staged_path is not None:
+            try:
+                staged_path.unlink(missing_ok=True)
+            except OSError:
+                logger.warning("Could not remove staged CSV %s", staged_path, exc_info=True)
+
+    logger.info("Rebuilding scrap table")
     as400.build_scrap_table()
+    logger.info("Scrap table rebuild returned")
+
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     main()
