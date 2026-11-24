@@ -13,6 +13,7 @@ from urllib import parse
 from timeit import default_timer as timer
 from datetime import datetime, timedelta
 import logging
+from contextlib import closing
 import common_funcs
 
 logging.basicConfig(level=logging.INFO)
@@ -51,7 +52,6 @@ database_conn = (
 )
 # Make Connection
 engine = create_engine(database_conn)
-conn_sql = engine.connect()
 
 # Define some globals
 TABLE_FPSPRMAST1 = "PROD.FPSPRMAST1"
@@ -553,9 +553,11 @@ def get_prod():
                 prod_list.append([str(x) for x in row])
     return prod_list
 
-def get_emps():
+EmployeeRow = tuple[str, str | None, str]
+
+
+def get_emps() -> list[EmployeeRow]:
     """Get Employees From iSeries AS400."""
-    employees_eng_login = ['9999', 'ELMER J FUDD', 'ENG']
     engineers = {'1720', '1626', '9999', '2126', '1496', '2241'}
 
     query_sql = """
@@ -569,18 +571,19 @@ def get_emps():
         AND EMP_SHIFT_TYPE = 'A'
         ORDER BY EMP_CLOCK_NUMBER
     """
-    try:
-        with connect_to_db() as db_connection:
-            cursor = db_connection.cursor()
-            result = process_query_result(cursor, query_sql, "AS400 Employee Records")
-            result.extend([employees_eng_login])
-            for row in result:
-                row[2] = 'ENG' if row[0] in engineers else 'DEF'
-            return result
-    except pyodbc.Error as ex:
-        print("Unable to connect to SQL Server" if ex.args[0] == '08001' else f"An error occurred: {ex}")
-        logger.error("Unable to connect to SQL Server" if ex.args[0] == '08001' else f"An error occurred: {ex}")
-        return []
+    with closing(connect_to_db()) as connection, closing(connection.cursor()) as cursor:
+        cursor.execute(query_sql)
+        records = cursor.fetchall()
+
+    if not records:
+        raise ValueError("AS400 returned no employee records")
+
+    employees = [
+        (clock, name, 'ENG' if clock in engineers else 'DEF')
+        for clock, name, _ in records
+    ]
+    employees.append(('9999', 'ELMER J FUDD', 'ENG'))
+    return employees
 
 
 
