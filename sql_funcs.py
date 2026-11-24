@@ -2,6 +2,7 @@ import pyodbc
 import os
 import config
 import common_funcs
+from contextlib import closing
 from urllib import parse
 from sqlalchemy import create_engine
 from sqlalchemy import text
@@ -132,10 +133,16 @@ def update_dbprod(data: list):
     update_database(data, TRUNCATE_TBLPROD, INSERT_PROD)
 
 
-def update_emps(data: list):
-    """Update Employee Data."""
-    print("Updating Employee Data...")
-    update_database(data, TRUNCATE_EMPLOYEE_TABLE, INSERT_EMPLOYEE)
+def update_emps(data: list[tuple[str, str | None, str]]) -> None:
+    """Replace the employee table in a single transaction."""
+    if not data or any(len(row) != 3 for row in data):
+        raise ValueError("Expected at least one employee row with three fields")
+
+    with closing(pyodbc.connect(CONNECTION_STRING, autocommit=False)) as connection:
+        with connection, closing(connection.cursor()) as cursor:
+            cursor.fast_executemany = True
+            cursor.execute(TRUNCATE_EMPLOYEE_TABLE)
+            cursor.executemany(INSERT_EMPLOYEE, data)
 
 
 def update_dbinv(data: list):
